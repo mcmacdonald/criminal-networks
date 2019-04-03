@@ -1,0 +1,2 @@
+# Criminal-networks
+A project where I generated ready-to-use network graphs, other objects (i.e., edgelists), and statistics from publically available social network data collected on criminal networks of all sorts and across different settings. Many of these network data are publically available at https://sites.google.com/site/ucinetsoftware/datasets. My purpose here is to use the the global statistics calculated from these network data to generate synthetic control groups.

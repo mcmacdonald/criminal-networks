@@ -1,4 +1,4 @@
 # Criminal-networks
-A project where I'm generating ready-to-use network graphs in R and global statistics from publically available social network data collected on criminal networks. Many of these network data are publically available at https://sites.google.com/site/ucinetsoftware/datasets. My purpose here is to use the the global statistics calculated from these network data to generate synthetic control groups.
+For this project, I'm computing ready-to-use synthetic criminal networks from published networks (see: https://sites.google.com/site/ucinetsoftware/datasets and https://icon.colorado.edu/#!/networks). To do so, I'm using the local statistics calculated from observed networks to simulate comparison networks for general use.
 
-I'll share my R code as I generate it.
+As I generate R code for this project, I'll share it.

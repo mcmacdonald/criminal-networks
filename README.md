@@ -1,4 +1,7 @@
-# Criminal-networks
-For this project, I've computed ready-to-use synthetic criminal networks from published tie data (see: https://sites.google.com/site/ucinetsoftware/datasets and https://icon.colorado.edu/#!/networks). I use the local-level configurations from observed networks to simulate comparison networks for use in other research.
+# criminal-networks
+
+For this project, I'm computing statistics for various criminal networks from published tie data (see: https://sites.google.com/site/ucinetsoftware/datasets & https://icon.colorado.edu/#!/networks).
+
+First, by comparing statistics over multiple networks, we establish regularities or randomness in criminal networks. The goal is to use the local-level configurations from observed networks to compute comparison networks for use in other research.
 
 As I generate R code for this project, I'll share it.

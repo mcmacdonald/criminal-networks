@@ -8,11 +8,8 @@ library('igraph')
 #-------------------------------------------------------------
 
 
-# File contents:
-# - A function to estimate degree scaling exponents in networks
 
-
-# Function to fit the power law distribution ---------------------------------------------
+# Function to estimate degree scaling exponents in networks ---------------------------------------------
 pk = function(graph) {
   
   # calculate degree

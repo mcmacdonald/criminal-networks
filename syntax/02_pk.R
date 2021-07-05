@@ -56,8 +56,8 @@ pk = function(graph) {
         )
   
   # plot the linear regression
-  k1 <- 1
-  kn <- max(
+  k1 <- 1    # min degree
+  kn <- max( # max degree
     igraph::degree(
       graph = graph, 
       v = igraph::V(graph), 

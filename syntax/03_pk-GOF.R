@@ -94,11 +94,18 @@ r = function(graph){
   # return the results vector
   return(r)
   
-  # End function
+  # close function
 }
 
 # compute degree distributions -------------------------
   
+  # Below, the leading prefix 'd_...' or 'r_...' notes whether the degree distribution ...
+  # ... characterizes the network we observe (d) or whehther it's from random equivalents (r)
+
+  # For example:
+  # ... d_d_siren = degree distribution via the siren auto theft network we observe
+  # ... r_d_siren = degree distribution via the 10,000 random networks using properties from siren
+
   # auto theft networks
   d_r_siren    = d(graph = r_siren)
   r_r_siren    = r(graph = r_siren)
@@ -149,25 +156,32 @@ vuong = function(d){
   lrtest = poweRlaw::compare_distributions(pl_fit, Pois_fit)
   
   # Vuong's LR test statistic 
-  lrstat = lrtest$test_statistic # because 'd' was input into the above funtion before ...
-  # ... 'r', a negative test statistic indicates 'r' describes the degree distribution ...
-  # ... and, assuming 'r' does give a better model fit, if we input 'd' and 'r' in ...
-  # ... the reverse order, we'd get the same test statistic, but positive
+  lrstat = lrtest$test_statistic
   print( paste0( "Vuong's LR test statistic = ", lrstat ) )
   
+  # Interpreting the LR test statistic: 
+  # the sign test (i.e., whether the LR test statistic is +/-) shows which data the test results lean...
+  # For example, inputting 'pl_fit' into the poweRlaw::compare_distributions() function ...
+  # ... before 'Pois_fit', or vice versa, carries meaning for interpreting the sign test ...
+  # A positive (+) test statistic suggests power law scaling best characterizes the degree distribution
+  # ... while a negative (-) test statistic suggests a Poisson distribution characterizes degree scaling
+  
+  # ... Assuming 'Pois_fit' suggests better GOF, reversing the input order in poweRlaw::compare_distributions() ...
+  # ... (i.e., 'Pois_fit' before 'pl_fit') computes same test statistic, but positive vs negative
+  
   # p-value (two-tailed)
-  p = lrtest$p_two_sided 
-  # if p < 0.05, reject H0: neither power law or Poisson distribution provides good fit
-  # if p > 0.05, fail to reject H1: degree distribution = power law or Poisson distribution
+  p = lrtest$p_two_sided
+  # if p < 0.05, reject H0: neither power law scaling or Poisson distribution fits the degree distribution
+  # if p > 0.05, fail to reject H1: degree distribution = power law or Poisson distribution (see LR test)
   print( paste0( "p-value = ", p ) )
   
   # Interpretation:
   print( paste0( "Interpretation:"))
-  print( paste0( "A postive (+) > negative (-) LR test statistic suggests 'd' > 'r', or vice versa"))
-  print( paste0( "> LR test statistics suggests better GOF 'd' vs. 'r'") )
+  print( paste0( "A postive (+) > negative (-) LR test statistic suggests 'd_...' > 'r_...', or vice versa"))
+  print( paste0( "> LR test statistics suggests better GOF") )
   print( paste0( "If p < 0.05 ... reject H0, intepret by +/- LR test statistic") )
   
-  # End function
+  # close function
 }
 
 # test results -------------------------
@@ -202,14 +216,22 @@ vuong = function(d){
 
   
   
-# Function testing if data meets requirements for power law distribution ---------------
+# Function testing if data meets requirements for power law scaling ----------------------------
 
-# As used in Clauset's papers ...
-# see https://scholar.google.ca/scholar?hl=en&as_sdt=0%2C5&q=Goldstein+2004+power+law&btnG=
+# Clauset's test: https://scholar.google.ca/scholar?hl=en&as_sdt=0%2C5&q=Goldstein+2004+power+law&btnG=
+
+# see Broido & Clauset's paper: https://www.nature.com/articles/s41467-019-08746-5
+# ... where they argue power law scaling in networks is the exception, not the norm & occurs ...
+# ... by certain social mechanisms 
+
+# Barabasi's response to Broido & Clauset's paper: https://www.barabasilab.com/post/love-is-all-you-need
+
+# Holme's response to this debate: https://www.nature.com/articles/s41467-019-09038-8
+
 pk_fit = function(graph, k){
   
-  # set initial conditions, where we test from the full distribution
-  D = igraph::degree( # set degree distribution
+  # set the initial conditions, where we test from the full degree distribution i.e., degree >= 1
+  d = igraph::degree( # set degree distribution
     graph = graph,
     v = igraph::V(graph), 
     mode = "total", 
@@ -217,25 +239,25 @@ pk_fit = function(graph, k){
     normalized = FALSE
   )
   
-  # power law fit for Y for a given k cut point
-  # for k / xmin, only values > k are used to fit the power law distribution
+  # power law scaling for a given k cut point i.e., degree >= k 
   Y = igraph::fit_power_law(
-    x = D, 
-    xmin = k, 
+    x = d,     # the degree distribution
+    xmin = k,  # For k or xmin, the algorithm tests only values >= k for power law scaling ...
+    # ... in other words, you truncate the degree distribution by removing values < k
     implementation = 'plfit'
   )
-  print( paste0("MLE for Y for a given k cut point:") )
-  print( paste0("Y = ", Y$alpha) )
+  # print test results
+  print( paste0("Alpha or scaling exponent for a given k cut point:", Y$alpha) )
   print( paste0("log likelihood statistic = ", Y$logLik ) )
   print( paste0("Kolmogorov-Smirnov test statistic = ", Y$KS.stat ) )
   print( paste0("p-vale for Kolmogorov-Smirnov test statistic = ", Y$KS.p ) )
   
   # Interpretation
-  print( paste0("Interpretation:") )
-  print( paste0("Kolmogorov-Smirnov test compares the fitted distribution with the input vector --- smaller scores indicate better fit") )
-  print( paste0("p-value < 0.05 for Kolmogorov-Smirnov test ---> reject H0: the original data could have been drawn from the fitted power-law distribution") )
+  print( paste0("... goodness-of-fit (GOF) interpretation:") )
+  print( paste0("Kolmogorov-Smirnov test compares the degree distribution k > 0 against k, where lower KS scores suggest better GOF") )
+  print( paste0("Kolmogorov-Smirnov test has p-value < 0.05 ---> reject H0: the sample could have been taken from the fitted (i.e., k-value) power-law scaling distribution") )
   
-  # End function -------------------------
+  # close function -------------------------
 }
 
 # e.g., show tests for siren auto theft network
@@ -251,8 +273,7 @@ pk_fit( # i.e., for all k > 4
   graph = r_siren, 
   k = 4
   )
-# ... when 'k' for xmin isn't specified, the algorithm chooses ...
-# ... the optimum value for k
+# ... when 'k' for xmin isn't specified, igraph::fit_power_law() chooses the optimum value for k
 pk_fit(
   graph = r_siren, 
   k = NULL

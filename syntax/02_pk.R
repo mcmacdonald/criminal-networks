@@ -1,6 +1,6 @@
 #-------------------------------------------------------------
 
-# File 02: B-A models to fit power law distributions
+# File 02: Fiting power law distributions (B-A models)
 
 # call packages
 library('igraph')
@@ -28,12 +28,14 @@ pk = function(graph) {
     mode = "all", 
     cumulative = FALSE
     )
-  degree = 1:max(d) # range of centralities from the network
   
-  # calculate probability of the degree frequency distribution, where p = probability
-  p = dd[-1] 
-  pk1 = which(p != 0) # remove degree = 0
-  p = p[pk1]
+  # centralities min - max range
+  degree = 1:max(d)
+  
+  # calculate probability distribution for degree centrality
+  p = dd[-1]
+  pk1 = which(p != 0) # remove degree = 0 ... i.e., p > 0
+  p = p[pk1] # subset
   
   # overwrite degree distribution when degree centrality > 0
   degree = degree[pk1]
@@ -46,7 +48,7 @@ pk = function(graph) {
   print(paste("N =", nobs(m) 
               ) 
         )
-  plfit = function(x) exp(b[[1]] + b[[2]] * log(x))
+  line  = function(x) exp(b[[1]] + b[[2]] * log(x))
   alpha = -b[[2]]
   R2    = summary(m)$r.squared
   print(paste("Alpha =", round(x = alpha, digits = 3) 
@@ -67,24 +69,23 @@ pk = function(graph) {
       normalized = FALSE
       )
     ) 
-  options(scipen = 999) # turn off scientific notation 
+  options(scipen = 999) # turn off scientific notation in Y-axis
   plot(p ~ degree, 
        log = "xy",
-       xlim = c(k1, kn), # scale x-axis 
-       ylim = c(0.0001, 1),
+       xlim = c(k1, kn), # x-axis scale 
+       ylim = c(0.0001, 1), # y-axis scale
        xlab = "degree k (log)", 
        ylab = "probability k (log)", 
        main = "SCALING IN DEGREE CENTRALITY",
        pch = 1, 
        cex = 2)
-  curve(plfit, 
+  curve(line, 
         col = "black", 
         lwd = 2, 
         add = TRUE, 
         n = length(d)
         )
-  
-  # End function
+  # close function
 }
 
 # plot results -------------------------

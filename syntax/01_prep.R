@@ -37,9 +37,9 @@ return(data)
 # r = ringing (auto theft) network
 # d = drug trafficking network
 # g = gang network
-# m = mafia i.e.,  "Cosa Nostra" or 'Ndrangheta
+# m = mafia i.e., 'Ndrangheta
 r_siren    = import(file = "https://raw.githubusercontent.com/mcmacdonald/criminal-networks/master/data/CAVIAR_FULL.csv") # siren auto theft
-r_togo     = import(file = "https://raw.githubusercontent.com/mcmacdonald/criminal-networks/master/data/TOGO.csv" ) # togo auto theft
+r_togo     = import(file = "https://raw.githubusercontent.com/mcmacdonald/criminal-networks/master/data/TOGO.csv") # togo auto theft
 d_caviar   = import(file = "https://raw.githubusercontent.com/mcmacdonald/criminal-networks/master/data/CAVIAR_FULL.csv") # caviar drug trafficking network - Morselli
 d_cocaine  = import(file = "https://raw.githubusercontent.com/mcmacdonald/criminal-networks/master/data/COCAINE_DEALING.csv") # NY cocaine trafficking network - Natarajan
 d_heroin   = import(file = "https://raw.githubusercontent.com/mcmacdonald/criminal-networks/master/data/HEROIN_DEALING.csv") # NY heroin trafficking network - Natarajan
@@ -47,9 +47,9 @@ d_cielnet  = import(file = "https://raw.githubusercontent.com/mcmacdonald/crimin
 g_ity      = import(file = "https://raw.githubusercontent.com/mcmacdonald/criminal-networks/master/data/ITALIAN_GANGS.csv") # Italian gangs
 g_ldn      = import(file = "https://raw.githubusercontent.com/mcmacdonald/criminal-networks/master/data/LONDON_GANG.csv") # London gangs
 g_mtl      = import(file = "https://raw.githubusercontent.com/mcmacdonald/criminal-networks/master/data/MONTREALGANG.csv") # Montreal gangs
-m_infinito = import(file = "https://raw.githubusercontent.com/mcmacdonald/criminal-networks/master/data/NDRANGHETAMAFIA_2M.csv") # Ndrangheta - meetings --- from Operation Infinito
+m_infinito = import(file = "https://raw.githubusercontent.com/mcmacdonald/criminal-networks/master/data/NDRANGHETAMAFIA_2M.csv") # Ndrangheta meeting participation i.e., Operation Infinito
 
-    # transpose the infinto meeting network from two-mode to one mode projection
+    # transpose the infinto meeting network from two-mode to one-mode projection
     m_infinito = igraph::graph.incidence(
       incidence = m_infinito, # graph by incidence/event i.e., meeting attendance
       directed = FALSE,
@@ -76,16 +76,14 @@ m_infinito = import(file = "https://raw.githubusercontent.com/mcmacdonald/crimin
 # symmetrize the network data --------------------------------------------------
 
 # Function has three steps:
-# 1. transform matrices into graphs, 
+# 1. transform matrices into graphs
 # 2. get binary graphs, or graphs with no edge weights
-# 3. transform to edgelist to get symmetry
+# 3. transform into symmetric edgelist
 symmetrize = function(mat){
-  
-  # step-by-step transform into symmetrized edgelist
-  mat[is.na(mat)] <- 0 # set missing cells = 0 i.e., no tie
+  mat[is.na(mat)] <- 0 # set missing cells = 0 i.e., no tie (in case of missings)
   mat = as.matrix(mat) # coerce to matrix
-  mat = igraph::graph_from_adjacency_matrix( # Adjacency matrix
-    adjmatrix = mat, 
+  mat = igraph::graph_from_adjacency_matrix( # adj matrix
+    adjmatrix = mat,
     mode = "undirected", 
     weighted = NULL, 
     diag = FALSE
@@ -112,8 +110,7 @@ symmetrize = function(mat){
     d = mat, 
     directed = FALSE
     )
-  
-  # End function
+  # close function
 }
 # symmetrize graphs 
 r_siren    = symmetrize(mat = r_siren)

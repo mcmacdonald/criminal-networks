@@ -138,7 +138,7 @@ r = function(graph){
 # compare Vuong's likelihood ratio test for power law v. Poisson models -------------------------
 vuong = function(d){
   
-  # where dd = degree distribution from the above random graph generator
+  # where d = degree distribution from the above random graph generator
   
   # Fit power law distribution
   pl_fit = poweRlaw::displ(d)

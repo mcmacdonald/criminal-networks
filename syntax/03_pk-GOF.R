@@ -46,7 +46,7 @@ r = function(graph){
   
   # Get dimensions for G(n,M)
   n <- length(igraph::V(graph)) # 'n' vertices
-  m <- length(igraph::V(graph)) # 'm' edges
+  m <- length(igraph::E(graph)) # 'm' edges
   
   # calculate 10,000 samples/iterations
   samples <- 10000

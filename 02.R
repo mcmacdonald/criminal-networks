@@ -1,9 +1,10 @@
-#  -----------------------------------------------------------------------------------
+#  ---------------------------------------------------------------------------------------------------
 
-# file 01: import and manipulate data used to calculate the hierarchical network model
-# note: you must run this file before you run file named '02_ck.R'
+# file 02: import and manipulate data used to estimate the hierarchical exponential random graph model
 
-# ------------------------------------------------------------------------------------
+# note: you must run this file before you run file named '03.R'
+
+# ----------------------------------------------------------------------------------------------------
 
 
 
@@ -29,7 +30,7 @@ cocaine  = import(file = "~/criminal-networks/data/natajaran_cocaine.csv") # NY 
 heroin   = import(file = "~/criminal-networks/data/natajaran_heroin.csv") # NY heroin trafficking network - Natarajan
 siren    = import(file = "~/criminal-networks/data/morselli_siren.csv") # siren auto theft - Morselli
 togo     = import(file = "~/criminal-networks/data/morselli_togo.csv") # togo auto theft - Morselli
-oversize = import(file = "~/criminal-networks/data/oversize.csv") # oversize -- wiretap records
+oversize = import(file = "~/criminal-networks/data/berlusconietal_oversize.csv") # oversize -- wiretap records
 
 
 
@@ -39,13 +40,13 @@ nodes <- function(x, prefix){
   colnames(x) <- c(1:nrow(x)); colnames(x) <- paste0(prefix, colnames(x)) # prefix = "N"
   return(x)
 }
-caviar  <- nodes(caviar, prefix = "caviar")
-cielnet <- nodes(cielnet, prefix = "cielnet")
-cocaine <- nodes(cocaine, prefix = "cocaine")
-heroin  <- nodes(heroin, prefix = "heroin")
-siren   <- nodes(siren, prefix = "siren")
-togo    <- nodes(togo, prefix = "togo")
-oversize<- nodes(oversize, prefix = "oversize")
+caviar   <- nodes(caviar, prefix = "caviar")
+cielnet  <- nodes(cielnet, prefix = "cielnet")
+cocaine  <- nodes(cocaine, prefix = "cocaine")
+heroin   <- nodes(heroin, prefix = "heroin")
+siren    <- nodes(siren, prefix = "siren")
+togo     <- nodes(togo, prefix = "togo")
+oversize <- nodes(oversize, prefix = "oversize")
 
 
 
@@ -117,7 +118,7 @@ g_super <- rbind(
   )
 
 
-# function to generate nodelist 
+# function to generate nodelists -----------------------------------------------
 nl <- function(el, net){
   nl <- stack(el)
   nl$ind <- NULL
@@ -166,7 +167,7 @@ rm( # drop edgelists for individual networks
 
 
 # construct super network with names and 'group membership'
-g_super <- igraph::graph_from_data_frame(
+g_super <- igraph::graph_from_data_frame( # 'group membership' automatically assigned as a node attribute
   g_super, 
   directed = FALSE, 
   vertices = d_super
@@ -176,3 +177,5 @@ g_super <- intergraph::asNetwork(g_super) # network object
 
 
 # close .r script
+
+

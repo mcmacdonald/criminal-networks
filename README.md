@@ -10,3 +10,6 @@ For source information & descriptions regarding the network data, see the websit
 
 Files were also available from UC Boulder's index of complex networks:
 https://icon.colorado.edu/#!/networks
+
+I obtain the data for the 'oversize' network from Berlusconi et al:
+https://figshare.com/articles/dataset/Oversize_network/3156067?file=4916425

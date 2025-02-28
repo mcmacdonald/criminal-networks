@@ -52,7 +52,7 @@ oversize <- nodes(oversize, prefix = "oversize")
 
 
 
-# symmetrize the network data --------------------------------------------------
+# symmetrize the relational data -----------------------------------------------
 
 # function has three steps:
 # 1. transform matrices into adjacency matrix
@@ -77,10 +77,6 @@ symmetrize = function(adj){
     remove.loops = TRUE, 
     remove.multiple = TRUE
     )
-  adj = igraph::delete_vertices( # delete isolates
-    adj, 
-    which(igraph::degree(adj, v = igraph::V(adj), mode = "total", loops = F)==0)
-    )
   el = igraph::as_edgelist( # into edgelist
     graph = adj, 
     names = TRUE
@@ -97,7 +93,7 @@ symmetrize = function(adj){
   return(el)
 }
 
-# symmetrize
+# delete_isolates
 siren    = symmetrize(siren)
 togo     = symmetrize(togo)
 caviar   = symmetrize(caviar)
@@ -105,6 +101,39 @@ cielnet  = symmetrize(cielnet)
 cocaine  = symmetrize(cocaine)
 heroin   = symmetrize(heroin)
 oversize = symmetrize(oversize)
+
+
+
+# function to delete isolates
+delete_isolates <- function(m){
+  require('igraph')
+  g <- igraph::graph_from_data_frame(m, directed = FALSE)
+  g <- igraph::delete_vertices( # delete isolates
+    g, 
+    which(igraph::degree(g, v = igraph::V(g), mode = "total", loops = F)==0)
+    )
+  el = igraph::as_edgelist( # into edgelist
+    graph = g, 
+    names = TRUE
+    )
+  el = as.data.frame( # back to dataframe
+    x = el, 
+    stringsAsFactors = FALSE
+    ) 
+  el = dplyr::rename( # rename columns
+    el, 
+    i = V1, 
+    j = V2
+    )
+  return(el)
+}
+siren    = delete_isolates(siren)
+togo     = delete_isolates(togo)
+caviar   = delete_isolates(caviar)
+cielnet  = delete_isolates(cielnet)
+cocaine  = delete_isolates(cocaine)
+heroin   = delete_isolates(heroin)
+oversize = delete_isolates(oversize)
 
 
 
@@ -118,6 +147,7 @@ g_super <- rbind(
   heroin,
   oversize
   )
+
 
 
 # function to generate nodelists -----------------------------------------------

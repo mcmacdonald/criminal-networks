@@ -19,7 +19,9 @@ g_super <- mlergm::mlnet(
   network = g_super, 
   node_memb = network::get.vertex.attribute(g_super, "group")
   )
-# plot the supergraph
+# check that graph is of type multi-level network
+mlergm::is.mlnet(g_super)
+# plot the super network
 plot(g_super, arrow.size = 2.5, arrow.gap = 0.025)
 
 

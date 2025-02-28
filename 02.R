@@ -32,7 +32,7 @@ cocaine  = import(file = "~/criminal-networks/data/natajaran_cocaine.csv") # NY 
 heroin   = import(file = "~/criminal-networks/data/natajaran_heroin.csv") # NY heroin trafficking network - Natarajan
 siren    = import(file = "~/criminal-networks/data/morselli_siren.csv") # siren auto theft - Morselli
 togo     = import(file = "~/criminal-networks/data/morselli_togo.csv") # togo auto theft - Morselli
-oversize = import(file = "~/criminal-networks/data/berlusconietal_oversize.csv") # oversize -- wiretap records
+oversize = import(file = "~/criminal-networks/data/berlusconietal_oversize.csv") # 'Ndrangheta -- wiretap records for those named in court records
 
 
 

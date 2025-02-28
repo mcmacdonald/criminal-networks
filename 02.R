@@ -33,6 +33,7 @@ heroin   = import(file = "~/criminal-networks/data/natajaran_heroin.csv") # NY h
 siren    = import(file = "~/criminal-networks/data/morselli_siren.csv") # siren auto theft - Morselli
 togo     = import(file = "~/criminal-networks/data/morselli_togo.csv") # togo auto theft - Morselli
 oversize = import(file = "~/criminal-networks/data/berlusconietal_oversize.csv") # 'Ndrangheta -- wiretap records for those named in court records
+montagna = import(file = "~/criminal-networks/data/luciaetal_montagna.csv") # 'Cosa Nostra -- wiretap records for those arrested and indicted on criminal charges
 
 
 
@@ -49,6 +50,7 @@ heroin   <- nodes(heroin, prefix = "heroin")
 siren    <- nodes(siren, prefix = "siren")
 togo     <- nodes(togo, prefix = "togo")
 oversize <- nodes(oversize, prefix = "oversize")
+montagna <- nodes(montagna, prefix = "montagna")
 
 
 
@@ -86,6 +88,7 @@ cielnet  = symmetrize(cielnet)
 cocaine  = symmetrize(cocaine)
 heroin   = symmetrize(heroin)
 oversize = symmetrize(oversize)
+montagna = symmetrize(montagna)
 
 
 
@@ -113,6 +116,7 @@ cielnet <- to_edgelist(cielnet)
 cocaine <- to_edgelist(cocaine)
 heroin <- to_edgelist(heroin)
 oversize <- to_edgelist(oversize)
+montagna <- to_edgelist(montagna)
 
 
 
@@ -146,6 +150,7 @@ cielnet  = delete_isolates(cielnet)
 cocaine  = delete_isolates(cocaine)
 heroin   = delete_isolates(heroin)
 oversize = delete_isolates(oversize)
+montagna = delete_isolates(montagna)
 
 
 
@@ -157,7 +162,8 @@ g_super <- rbind(
   cielnet,
   cocaine,
   heroin,
-  oversize
+  oversize,
+  montagna
   )
 
 
@@ -178,6 +184,9 @@ v_cielnet  <- nl(cielnet, net = "cielnet")
 v_cocaine  <- nl(cocaine, net = "cocaine")
 v_heroin   <- nl(heroin, net = "heroin")
 v_oversize <- nl(oversize, net = "oversize")
+v_montagna <- nl(montagna, net = "montagna")
+
+
 
 # join into attribute data for super network
 v_super <- rbind(
@@ -187,7 +196,8 @@ v_super <- rbind(
   v_cielnet,
   v_cocaine,
   v_heroin,
-  v_oversize
+  v_oversize,
+  v_montagna
   )
 rm( # drop attribute data for individual networks
   v_siren,
@@ -196,7 +206,8 @@ rm( # drop attribute data for individual networks
   v_cielnet,
   v_cocaine,
   v_heroin,
-  v_oversize
+  v_oversize,
+  v_montagna
   )
 rm( # drop edgelists for individual networks
   siren,
@@ -205,7 +216,8 @@ rm( # drop edgelists for individual networks
   cielnet,
   cocaine,
   heroin,
-  oversize
+  oversize,
+  montagna
   )
 
 

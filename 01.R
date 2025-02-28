@@ -6,6 +6,7 @@
 
 # link to download the original data:
 # Berlusconi et al.: https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0154244
+# most suspects under investigation were members or associates of the ‘Ndrangheta of the region of Calabria
 
 # last updated: 27/02/2025
 

@@ -30,8 +30,8 @@ import = function(file){
   data = data[-1, -1] # drop first row, column (i.e, vertex labels)
   return(data)
 }
-oversize = import(file = "~/Desktop/oversize.csv") # oversize -- wiretap records
-
+oversizeWR = import(file = "~/Desktop/oversizeWR.csv") # wiretap records
+overwizeJU = import(file = "~/Desktop/oversizeJU.csv") # court records
 
 # label rows and columns with unique names
 nodes <- function(x, prefix){
@@ -46,9 +46,7 @@ oversizeJU <- nodes(oversizeJU, prefix = "oversize")
 
 # symmetrize the relational data ------------------------------------------------
 
-# function has three steps:
-# 1. transform matrices into adjacency matrix
-# 2. transform into binary adjacency matrix, or adj matrix with no edge weights
+
 # 3. transform into symmetric edgelist
 symmetrize = function(adj){
   
@@ -64,15 +62,27 @@ symmetrize = function(adj){
     weighted = NULL, 
     diag = FALSE
     )
-  adj = igraph::simplify( # into binary adjacency mat
+  adj = igraph::simplify( # drop edge weights, transform to binary adjacency matrix
     graph = adj, 
     remove.loops = TRUE, 
     remove.multiple = TRUE
     )
-  # adj = igraph::delete_vertices( # delete isolates
-    # adj, 
-    # which(igraph::degree(adj, v = igraph::V(adj), mode = "total", loops = F)==0)
-    # )
+  adj = igraph::as_adjacency_matrix( # symmetric adjacency matrix to symmetrize
+    adj, 
+    type = "both", 
+    names = TRUE
+    )
+  return(adj)
+}
+
+# symmetrize
+oversizeWR = symmetrize(oversizeWR)
+oversizeJU = symmetrize(oversizeJU)
+
+
+
+# function to transform adjacency matrix to edgelist ---------------------------
+to_edgelist <- function(adj){
   el = igraph::as_edgelist( # into edgelist
     graph = adj, 
     names = TRUE
@@ -88,10 +98,8 @@ symmetrize = function(adj){
     )
   return(el)
 }
-
-# symmetrize
-oversizeWR = symmetrize(oversizeWR)
-oversizeJU = symmetrize(oversizeJU)
+oversizeWR <- to_edgelist(oversizeWR)
+oversizeJU <- to_edgelist(oversizeJU)
 
 
 

@@ -1,6 +1,15 @@
+#  -----------------------------------------------------------------------------------
 
+# file 01: import and manipulate relational data for the 'oversize' network of mafias
 
+# note: you must run this file before you run file named '02.R'
 
+# link to download the original data:
+# Berlusconi et al.: https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0154244
+
+# last updated: 26/02/2025
+
+# ------------------------------------------------------------------------------------
 
 
 
@@ -20,7 +29,7 @@ import = function(file){
   data = data[-1, -1] # drop first row, column (i.e, vertex labels)
   return(data)
 }
-oversize = import(file = "~/criminal-networks/data/oversize.csv") # oversize -- wiretap records
+oversize = import(file = "~/Desktop/oversize.csv") # oversize -- wiretap records
 
 
 # label rows and columns with unique names
@@ -34,7 +43,7 @@ oversizeJU <- nodes(oversizeJU, prefix = "oversize")
 
 
 
-# symmetrize the network data --------------------------------------------------
+# symmetrize the relational data ------------------------------------------------
 
 # function has three steps:
 # 1. transform matrices into adjacency matrix
@@ -53,29 +62,29 @@ symmetrize = function(adj){
     mode = "undirected", 
     weighted = NULL, 
     diag = FALSE
-  )
+    )
   adj = igraph::simplify( # into binary adjacency mat
     graph = adj, 
     remove.loops = TRUE, 
     remove.multiple = TRUE
-  )
+    )
   # adj = igraph::delete_vertices( # delete isolates
-  # adj, 
-  # which(igraph::degree(adj, v = igraph::V(adj), mode = "total", loops = F)==0)
-  # )
+    # adj, 
+    # which(igraph::degree(adj, v = igraph::V(adj), mode = "total", loops = F)==0)
+    # )
   el = igraph::as_edgelist( # into edgelist
     graph = adj, 
     names = TRUE
-  )
+    )
   el = as.data.frame( # back to dataframe
     x = el, 
     stringsAsFactors = FALSE
-  ) 
+    ) 
   el = dplyr::rename( # rename columns
     el, 
     i = V1, 
     j = V2
-  )
+    )
   return(el)
 }
 
@@ -84,42 +93,50 @@ oversizeWR = symmetrize(oversizeWR)
 oversizeJU = symmetrize(oversizeJU)
 
 
+
 # delete nodes from oversize wiretap records not named in court records
 
-# nodelist
-v <- stack(oversizeWR)
-v$ind <- NULL
-v <- unique(v$values)
-v <- as.data.frame(v)
-v <- dplyr::rename(v, name = v)
+  # nodelist
+  v <- stack(oversizeWR)
+  v$ind <- NULL
+  v <- unique(v$values)
+  v <- as.data.frame(v)
+  v <- dplyr::rename(v, name = v)
 
-# graph
-g <- igraph::graph_from_data_frame(oversizeJU, directed = FALSE, vertices = v)
+  # graph
+  g <- igraph::graph_from_data_frame(
+    oversizeJU, 
+    directed = FALSE, 
+    vertices = v
+    )
+  
+  # degree centrality 
+  degree <- igraph::degree(
+    g, 
+    mode = "total", 
+    loops = FALSE
+    )
+  degree0 <- degree[degree == 0] # isolates
 
-# degree centrality 
-degree <- igraph::degree(
-  g, 
-  mode = "total", 
-  loops = FALSE
-  )
-degree0 <- degree[degree == 0] # isolates
+  # drop anyone not named in court records
+  oversize <- igraph::graph_from_data_frame(oversizeWR, directed = FALSE, vertices = v)
+  oversize <- igraph::delete_vertices( # delete isolates
+    oversize, 
+    names(degree0)
+    )
+  rm(degree, degree0, oversizeWR, oversizeJU, v)
 
-# drop anyone not named in court records
-oversize <- igraph::graph_from_data_frame(oversizeWR, directed = FALSE, vertices = v)
-oversize <- igraph::delete_vertices( # delete isolates
-  oversize, 
-  names(degree0)
-  )
-rm(degree, degree0, oversizeWR, oversizeJU)
-
-# into adjacency matriz format
+# into adjacency matrix format
 oversize <- igraph::as_adjacency_matrix(oversize, names = TRUE)
 oversize <- as.matrix(oversize)
 oversize <- as.data.frame(oversize)
-setwd("~/Desktop")
-write.csv(oversize, file = "oversize.csv")
+
+# don't run
+# setwd("~/Desktop")
+# write.csv(oversize, file = "oversize.csv")
 
 
 
+# close .r script
 
 

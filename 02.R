@@ -205,6 +205,7 @@ g_super <- igraph::graph_from_data_frame( # 'group membership' automatically ass
   vertices = d_super
   )
 g_super <- intergraph::asNetwork(g_super) # network object
+network::is.network(g_super) # check that graph is of type 'network'
 
 
 

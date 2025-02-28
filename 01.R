@@ -135,16 +135,10 @@ oversize <- as.data.frame(oversize)
 # don't run
 # setwd("~/Desktop")
 # write.csv(oversize, file = "oversize.csv")
-<<<<<<< HEAD
 
 
 
 # close .r script
-=======
->>>>>>> aa72bc6595c755ddd1eb690dcef6eea99ac85398
 
-
-
-# close .r script
 
 

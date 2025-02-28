@@ -45,9 +45,6 @@ oversizeJU <- nodes(oversizeJU, prefix = "oversize")
 
 
 # symmetrize the relational data ------------------------------------------------
-
-
-# 3. transform into symmetric edgelist
 symmetrize = function(adj){
   
   # required packages
@@ -106,43 +103,53 @@ oversizeJU <- to_edgelist(oversizeJU)
 # delete nodes from oversize wiretap records not named in court records
 
   # nodelist
-  v <- stack(oversizeWR)
+  v <- stack(oversizeWR) # names of all nodes in the wire tap records
   v$ind <- NULL
   v <- unique(v$values)
   v <- as.data.frame(v)
   v <- dplyr::rename(v, name = v)
-
-  # graph
-  g <- igraph::graph_from_data_frame(
-    oversizeJU, 
+  
+  # undirected, binary graph object for the wire tap records 
+  oversizeWR <- igraph::graph_from_data_frame(
+    oversizeWR,
     directed = FALSE, 
-    vertices = v
+    vertices = v # nodes
+    )
+
+  # undirected, binary graph object for the court records
+  oversizeJU <- igraph::graph_from_data_frame(
+    oversizeJU,
+    directed = FALSE, 
+    vertices = v # nodes
     )
   
-  # degree centrality 
-  degree <- igraph::degree(
-    g, 
+  # degree centrality for the court records
+  degreeJU <- igraph::degree(
+    oversizeJU, 
     mode = "total", 
     loops = FALSE
     )
-  degree0 <- degree[degree == 0] # isolates
+  degreeJU0 <- degreeJU[degreeJU == 0] # isolates
 
-  # drop anyone not named in court records
-  oversize <- igraph::graph_from_data_frame(oversizeWR, directed = FALSE, vertices = v)
-  oversize <- igraph::delete_vertices( # delete isolates
-    oversize, 
-    names(degree0)
+  # drop anyone from the wiretap record not named in court records
+  oversizeWR <- igraph::delete_vertices( # delete isolates
+    oversizeWR, 
+    names(degreeJU0)
     )
-  rm(degree, degree0, oversizeWR, oversizeJU, v)
+  rm(degreeJU, 
+     degreeJU0,
+     oversizeJU, 
+     v
+     )
 
-# into adjacency matrix format
-oversize <- igraph::as_adjacency_matrix(oversize, names = TRUE)
-oversize <- as.matrix(oversize)
-oversize <- as.data.frame(oversize)
+# transform into adjacency matrix format
+oversizeWR <- igraph::as_adjacency_matrix(oversizeWR, names = TRUE)
+oversizeWR <- as.matrix(oversizeWR)
+oversizeWR <- as.data.frame(oversizeWR)
 
 # don't run
 # setwd("~/Desktop")
-# write.csv(oversize, file = "oversize.csv")
+# write.csv(oversizeWR, file = "oversize.csv")
 
 
 

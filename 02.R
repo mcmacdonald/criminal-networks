@@ -53,11 +53,6 @@ oversize <- nodes(oversize, prefix = "oversize")
 
 
 # symmetrize the relational data -----------------------------------------------
-
-# function has three steps:
-# 1. transform matrices into adjacency matrix
-# 2. transform into binary adjacency matrix, or adj matrix with no edge weights
-# 3. transform into symmetric edgelist
 symmetrize = function(adj){
   
   # required packages
@@ -72,11 +67,30 @@ symmetrize = function(adj){
     weighted = NULL, 
     diag = FALSE
     )
-  adj = igraph::simplify( # into binary adjacency mat
+  adj = igraph::simplify( # drop edge weights, transform to binary adjacency matrix
     graph = adj, 
     remove.loops = TRUE, 
     remove.multiple = TRUE
     )
+  adj = igraph::as_adjacency_matrix( # symmetric adjacency matrix to symmetrize
+    adj, 
+    type = "both", 
+    names = TRUE
+    )
+  return(adj)
+}
+siren    = symmetrize(siren)
+togo     = symmetrize(togo)
+caviar   = symmetrize(caviar)
+cielnet  = symmetrize(cielnet)
+cocaine  = symmetrize(cocaine)
+heroin   = symmetrize(heroin)
+oversize = symmetrize(oversize)
+
+
+
+# function to transform adjacency matrix to edgelist ---------------------------
+to_edgelist <- function(adj){
   el = igraph::as_edgelist( # into edgelist
     graph = adj, 
     names = TRUE
@@ -92,25 +106,23 @@ symmetrize = function(adj){
     )
   return(el)
 }
-
-# delete_isolates
-siren    = symmetrize(siren)
-togo     = symmetrize(togo)
-caviar   = symmetrize(caviar)
-cielnet  = symmetrize(cielnet)
-cocaine  = symmetrize(cocaine)
-heroin   = symmetrize(heroin)
-oversize = symmetrize(oversize)
+siren <- to_edgelist(siren)
+togo <- to_edgelist(togo)
+caviar <- to_edgelist(caviar)
+cielnet <- to_edgelist(cielnet)
+cocaine <- to_edgelist(cocaine)
+heroin <- to_edgelist(heroin)
+oversize <- to_edgelist(oversize)
 
 
 
-# function to delete isolates
-delete_isolates <- function(m){
+# function to delete isolates --------------------------------------------------
+delete_isolates <- function(el){
   require('igraph')
-  g <- igraph::graph_from_data_frame(m, directed = FALSE)
+  g <- igraph::graph_from_data_frame(el, directed = FALSE)
   g <- igraph::delete_vertices( # delete isolates
     g, 
-    which(igraph::degree(g, v = igraph::V(g), mode = "total", loops = F)==0)
+    which(igraph::degree(g, v = igraph::V(g), mode = "total", loops = F)==0) # degree = 0
     )
   el = igraph::as_edgelist( # into edgelist
     graph = g, 
@@ -137,7 +149,7 @@ oversize = delete_isolates(oversize)
 
 
 
-# join into super network
+# append edgelists to create 'super network' -----------------------------------
 g_super <- rbind(
   siren,
   togo,
@@ -159,13 +171,13 @@ nl <- function(el, net){
   nl <- dplyr::mutate(nl, group = net) # attach name of networks to nodelist -- need them to assign 'group' membership in the graph
   return(nl)
 }
-d_siren   <- nl(siren, net = "siren")
-d_togo    <- nl(togo, net = "togo")
-d_caviar  <- nl(caviar, net = "caviar")
-d_cielnet <- nl(cielnet, net = "cielnet")
-d_cocaine <- nl(cocaine, net = "cocaine")
-d_heroin  <- nl(heroin, net = "heroin")
-d_oversize<- nl(oversize, net = "oversize")
+d_siren    <- nl(siren, net = "siren")
+d_togo     <- nl(togo, net = "togo")
+d_caviar   <- nl(caviar, net = "caviar")
+d_cielnet  <- nl(cielnet, net = "cielnet")
+d_cocaine  <- nl(cocaine, net = "cocaine")
+d_heroin   <- nl(heroin, net = "heroin")
+d_oversize <- nl(oversize, net = "oversize")
 
 # join into attribute data for super network
 d_super <- rbind(

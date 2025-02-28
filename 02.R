@@ -171,32 +171,32 @@ nl <- function(el, net){
   nl <- dplyr::mutate(nl, group = net) # attach name of networks to nodelist -- need them to assign 'group' membership in the graph
   return(nl)
 }
-d_siren    <- nl(siren, net = "siren")
-d_togo     <- nl(togo, net = "togo")
-d_caviar   <- nl(caviar, net = "caviar")
-d_cielnet  <- nl(cielnet, net = "cielnet")
-d_cocaine  <- nl(cocaine, net = "cocaine")
-d_heroin   <- nl(heroin, net = "heroin")
-d_oversize <- nl(oversize, net = "oversize")
+v_siren    <- nl(siren, net = "siren")
+v_togo     <- nl(togo, net = "togo")
+v_caviar   <- nl(caviar, net = "caviar")
+v_cielnet  <- nl(cielnet, net = "cielnet")
+v_cocaine  <- nl(cocaine, net = "cocaine")
+v_heroin   <- nl(heroin, net = "heroin")
+v_oversize <- nl(oversize, net = "oversize")
 
 # join into attribute data for super network
-d_super <- rbind(
-  d_siren,
-  d_togo,
-  d_caviar,
-  d_cielnet,
-  d_cocaine,
-  d_heroin,
-  d_oversize
+v_super <- rbind(
+  v_siren,
+  v_togo,
+  v_caviar,
+  v_cielnet,
+  v_cocaine,
+  v_heroin,
+  v_oversize
   )
 rm( # drop attribute data for individual networks
-  d_siren,
-  d_togo,
-  d_caviar,
-  d_cielnet,
-  d_cocaine,
-  d_heroin,
-  d_oversize
+  v_siren,
+  v_togo,
+  v_caviar,
+  v_cielnet,
+  v_cocaine,
+  v_heroin,
+  v_oversize
   )
 rm( # drop edgelists for individual networks
   siren,
@@ -214,7 +214,7 @@ rm( # drop edgelists for individual networks
 g_super <- igraph::graph_from_data_frame( # 'group membership' automatically assigned as a node attribute
   g_super, 
   directed = FALSE, 
-  vertices = d_super
+  vertices = v_super
   )
 g_super <- intergraph::asNetwork(g_super) # network object
 network::is.network(g_super) # check that graph is of type 'network'

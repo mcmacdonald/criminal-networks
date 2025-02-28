@@ -65,7 +65,7 @@ symmetrize = function(adj){
   adj = as.matrix(adj) # coerce to matrix
   adj = igraph::graph_from_adjacency_matrix( # adjacency matrix
     adjmatrix = adj,
-    mode = "undirected", 
+    mode = "max", 
     weighted = NULL, 
     diag = FALSE
     )
@@ -94,20 +94,14 @@ montagna = symmetrize(montagna)
 
 # function to transform adjacency matrix to edgelist ---------------------------
 to_edgelist <- function(adj){
-  el = igraph::as_edgelist( # into edgelist
-    graph = adj, 
-    names = TRUE
+  g <- igraph::graph_from_adjacency_matrix(adj)
+  e <- igraph::as_data_frame(g)
+  e = dplyr::rename( # rename columns
+    e, 
+    i = from, 
+    j = to
     )
-  el = as.data.frame( # back to dataframe
-    x = el, 
-    stringsAsFactors = FALSE
-    ) 
-  el = dplyr::rename( # rename columns
-    el, 
-    i = V1, 
-    j = V2
-    )
-  return(el)
+  return(e)
 }
 siren <- to_edgelist(siren)
 togo <- to_edgelist(togo)

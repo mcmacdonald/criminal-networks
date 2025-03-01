@@ -207,13 +207,14 @@ line_super <- mle_line(mle_super[[1]])
 
 
 # plot the log normal curves for each of the criminal networks estimated from the model ------------------------------------------------------------------------------
-ccdf_plot <- function(plot, line){
+ccdf_plot <- function(plot, line, title){
   require(ggplot2); require(scales)
   # tutorial on how to plot poweRlaw() objects with ggplot2
   # https://rpubs.com/lgadar/power-law
   ccdf <- ggplot2::ggplot(plot) + 
   ggplot2::geom_point(ggplot2::aes(x = x, y = y), shape = 21, size = 10, color = "black", fill = "white") +
   ggplot2::labs(y = "LOGGED COMPLEMENTARY CUMULATIVE DISTRIBUTION FUNCTION (CCDF)", x = "LOGGED DEGREE") +
+  ggplot2::ggtitle(title) +
   # tutorial to add log scales and tick marks
   # https://www.datanovia.com/en/blog/ggplot-log-scale-transformation/
   ggplot2::scale_x_log10(breaks = scales::trans_breaks("log10", function(x) 10^x),
@@ -224,16 +225,31 @@ ccdf_plot <- function(plot, line){
   ggplot2::theme_bw() +
   ggplot2::geom_line(data = line, ggplot2::aes(x = x, y = y), color = "firebrick1", linewidth = 2)
 }
-ccdf_siren <- ccdf_plot(plot = plot_siren, line = line_siren)
-ccdf_togo <- ccdf_plot(plot = plot_togo, line = line_togo)
-ccdf_caviar <- ccdf_plot(plot = plot_caviar, line = line_cavair)
-ccdf_cielnet <- ccdf_plot(plot = plot_cielnet, line = line_cielnet)
-ccdf_cocaine <- ccdf_plot(plot = plot_cocaine, line = line_cocaine)
-ccdf_heroin <- ccdf_plot(plot = plot_heroin, line = plot_heroin)
-ccdf_oversize <- ccdf_plot(plot = plot_oversize, line = plot_oversize)
-ccdf_montagna <- ccdf_plot(plot = plot_montagna, line = plot_montagna)
-ccdf_super <- ccdf_plot(plot = plot_super, line = line_super)
+ccdf_siren <- ccdf_plot(plot = plot_siren, line = line_siren, title = "(A) SIREN AUTO THEFT RING")
+ccdf_togo <- ccdf_plot(plot = plot_togo, line = line_togo, title = "(B) TOGO AUTO THEFT RING")
+ccdf_caviar <- ccdf_plot(plot = plot_caviar, line = line_cavair, title = "(C) CAVAIR DRUG TRAFFICKING ORGANIZATION")
+ccdf_cielnet <- ccdf_plot(plot = plot_cielnet, line = line_cielnet, title = "(D) CIELNET DRUG TRAFFICKING ORGANIZATION")
+ccdf_cocaine <- ccdf_plot(plot = plot_cocaine, line = line_cocaine, title = "(E) LA COSA NOSTRA COCAINE TRAFFICKING OUTFIT")
+ccdf_heroin <- ccdf_plot(plot = plot_heroin, line = plot_heroin, title = "(F) NEW YORK CITY HEROIN TRAFFICKERS")
+ccdf_oversize <- ccdf_plot(plot = plot_oversize, line = plot_oversize, title = "(G) 'NDRANGHETA WIRETAPS")
+ccdf_montagna <- ccdf_plot(plot = plot_montagna, line = plot_montagna, title = "(H) COSA NOSTRA WIRETAPS")
+ccdf_super <- ccdf_plot(plot = plot_super, line = line_super, title = "(I) SUPER POPULATION OF CRIMINAL NETWORKS")
 
+
+
+# output high resolution images
+output <- function(plot, filename){
+  ggplot2::ggsave(
+    filename,
+    plot,
+    path = "~/Desktop", 
+    width = 5, 
+    height = 5, 
+    device = 'pdf', 
+    dpi = 700
+    )
+}
+output(plot = ccdf_siren, filename = "fig2a")
 
 
 

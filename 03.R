@@ -71,18 +71,18 @@ vuong = function(g){
   alpha$setPars(poweRlaw::estimate_pars(alpha))
   
   # fit log normal distribution
-  lambda = poweRlaw::dislnorm(d)
-  lambda$setXmin(1) # for all degree k => 1
-  lambda$setPars(poweRlaw::estimate_pars(lambda))
+  mu = poweRlaw::dislnorm(d)
+  mu$setXmin(1) # for all degree k => 1
+  mu$setPars(poweRlaw::estimate_pars(mu))
   
   # Vuong's likelihood-ratio test to compare models
-  lrtest = poweRlaw::compare_distributions(alpha, lambda)
+  lrtest = poweRlaw::compare_distributions(alpha, mu)
   # notes on the interpretation of Vuong's likelihood-ratio test statistic: 
   # the sign of the test statistic (i.e., +/-) has meaning for interpretation (Vuong's formula is a sign test)
-  # because 'alpha' is the first input into the poweRlaw::compare_distributions() function and 'lambda' is the second:
+  # because 'alpha' is the first input into the poweRlaw::compare_distributions() function and 'mu' is the second:
   # ... a positive (+) test statistic suggests the degree distribution more so resembles the power law distribution
-  # ... a negative (-) test statistic suggests the degree distribution more so resembles the Poisson distribution
-  # ... reversing the input order in poweRlaw::compare_distributions() (i.e., 'lambda' before 'alpha') computes the same test statistic, but in the opposite direction
+  # ... a negative (-) test statistic suggests the degree distribution more so resembles the log normal distribution
+  # ... reversing the input order in poweRlaw::compare_distributions() (i.e., 'mu' before 'alpha') computes the same test statistic, but in the opposite direction
   
   # test results
   message("Results of Vuong's likelihood ratio test:")

@@ -15,7 +15,7 @@
 
 
 
-# plot complimentary cumulative degree distribution -----------------------------
+# plot complimentary cumulative degree distribution ----------------------------------
 cdf_degree <- function(g){
   par(mfrow=c(1,1)) # plot dimensions
   # normalized degree centrality
@@ -43,7 +43,7 @@ cdf_degree(g_super)
 
 
 
-# compare Vuong's likelihood ratio test for goodness-of-fit of power law distribution
+# compare Vuong's likelihood ratio test for goodness-of-fit of power law distribution ----------------------------------------------------------------
 vuong = function(g){
   
   # required packages
@@ -126,10 +126,118 @@ vuong(g_super)
 
 
 
+# estimate the shape of the degree distribution from the log-normal model -------------------------------------------------------------------
+mle <- function(g, sims){
+  require("poweRlaw")
+  
+  # degree distribution for the criminal networks
+  d <- sna::degree(g, gmode = "graph", cmode = "freeman", rescale = FALSE)
+  d <- d[order(d, decreasing = TRUE)]
+  # d <- d/max(d)
+  
+  # fit log normal distribution to estimate the decay parameter
+  mu = poweRlaw::dislnorm(d) #  mu = poweRlaw::conlnorm(d)
+  mu$setXmin(min(d)) # for all degree k => 1
+  mu$setPars(poweRlaw::estimate_pars(mu))
+  
+  # bootstrapped confidence intervals for the shape of the distribution
+  ci <- poweRlaw::bootstrap(
+    mu,
+    xmins = min(d),
+    # xmins = seq(1, k, 1),
+    no_of_sims = sims,
+    threads = 4,
+    seed = 16052024
+    )
+  
+  # p-value for the log normal distribution 
+  p <- poweRlaw::bootstrap_p(
+    mu,
+    xmins = min(d),
+    # xmins = seq(1, k, 1),
+    no_of_sims = sims, 
+    threads = 4, 
+    seed = 16052024
+    )
+  
+  # return model fit
+  fit <- list(mu, ci, p)
+  return(fit)
+}
+mle_siren <- mle(g_siren, sims = 10000)
+mle_togo  <- mle(g_togo, sims = 10000)
+mle_caviar <- mle(g_caviar, sims = 10000)
+mle_cielnet <- mle(g_cielnet, sims = 10000)
+mle_cocaine <- mle(g_cielnet, sims = 10000)
+mle_heroin <- mle(g_heroin, sims = 10000)
+mle_oversize <- mle(g_oversize, sims = 10000)
+mle_montagna <- mle(g_montagna, sims = 10000)
+mle_super <- mle(g_super, sims = 10000)
+
+
+
+# plot the degree distribution for each of the criminal networks
+mle_plot <- function(model){
+  plot <- plot(model, draw = F)
+}
+plot_siren <- mle_plot(mle_siren[[1]])
+plot_togo <- mle_plot(mle_togo[[1]])
+plot_caviar <- mle_plot(mle_caviar[[1]])
+plot_cielnet <- mle_plot(mle_cielnet[[1]])
+plot_cocaine <- mle_plot(mle_cocaine[[1]])
+plot_heroin <- mle_plot(mle_heroin[[1]])
+plot_oversize <- mle_plot(mle_oversize[[1]])
+plot_montagna <- mle_plot(mle_montagna[[1]])
+plot_super <- mle_plot(mle_super[[1]])
+
+
+# plot the maximum likelihood estimate for each of the criminal networks
+mle_line <- function(model){
+  line <- lines(model, draw = F)
+}
+line_siren <- mle_line(mle_siren[[1]])
+line_togo <- mle_line(mle_togo[[1]])
+line_cavair <- mle_line(mle_caviar[[1]])
+line_cielnet <- mle_line(mle_cielnet[[1]])
+line_cocaine <- mle_line(mle_cocaine[[1]])
+line_heroin <- mle_line(mle_heroin[[1]])
+line_oversize <- mle_line(mle_oversize[[1]])
+line_montagna <- mle_line(mle_montagna[[1]])
+line_super <- mle_line(mle_super[[1]])
+
+
+# plot the log normal curves for each of the criminal networks estimated from the model ------------------------------------------------------------------------------
+ccdf_plot <- function(plot, line){
+  require(ggplot2); require(scales)
+  # tutorial on how to plot poweRlaw() objects with ggplot2
+  # https://rpubs.com/lgadar/power-law
+  ccdf <- ggplot2::ggplot(plot) + 
+  ggplot2::geom_point(ggplot2::aes(x = x, y = y), shape = 21, size = 10, color = "black", fill = "white") +
+  ggplot2::labs(y = "LOGGED COMPLEMENTARY CUMULATIVE DISTRIBUTION FUNCTION (CCDF)", x = "LOGGED DEGREE") +
+  # tutorial to add log scales and tick marks
+  # https://www.datanovia.com/en/blog/ggplot-log-scale-transformation/
+  ggplot2::scale_x_log10(breaks = scales::trans_breaks("log10", function(x) 10^x),
+                         labels = scales::trans_format("log10", math_format(10^.x))) +
+  ggplot2::scale_y_log10(breaks = scales::trans_breaks("log10", function(x) 10^x),
+                         labels = scales::trans_format("log10", math_format(10^.x))) +
+  ggplot2::annotation_logticks(sides = "trbl") +
+  ggplot2::theme_bw() +
+  ggplot2::geom_line(data = line, ggplot2::aes(x = x, y = y), color = "firebrick1", linewidth = 2)
+}
+ccdf_siren <- ccdf_plot(plot = plot_siren, line = line_siren)
+ccdf_togo <- ccdf_plot(plot = plot_togo, line = line_togo)
+ccdf_caviar <- ccdf_plot(plot = plot_caviar, line = line_cavair)
+ccdf_cielnet <- ccdf_plot(plot = plot_cielnet, line = line_cielnet)
+ccdf_cocaine <- ccdf_plot(plot = plot_cocaine, line = line_cocaine)
+ccdf_heroin <- ccdf_plot(plot = plot_heroin, line = plot_heroin)
+ccdf_oversize <- ccdf_plot(plot = plot_oversize, line = plot_oversize)
+ccdf_montagna <- ccdf_plot(plot = plot_montagna, line = plot_montagna)
+ccdf_super <- ccdf_plot(plot = plot_super, line = line_super)
 
 
 
 
 
+# close .r script
 
 

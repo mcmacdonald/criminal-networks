@@ -148,20 +148,6 @@ montagna = delete_isolates(montagna)
 
 
 
-# append edgelists to create 'super network' -----------------------------------
-g_super <- rbind(
-  siren,
-  togo,
-  caviar,
-  cielnet,
-  cocaine,
-  heroin,
-  oversize,
-  montagna
-  )
-
-
-
 # function to generate nodelists -----------------------------------------------
 nl <- function(el, net){
   nl <- stack(el)
@@ -181,6 +167,35 @@ v_oversize <- nl(oversize, net = "oversize")
 v_montagna <- nl(montagna, net = "montagna")
 
 
+# transform igraph objects to network objects to estimate models
+graph <- function(e, v){
+  g <- igraph::graph_from_data_frame(e, directed = FALSE, vertices = v)
+  g <- igraph::simplify(g) # force the graph to not be of type 'multiple'
+  g <- intergraph::asNetwork(g)
+  return(g)
+}
+g_siren  <- graph(siren, v = v_siren)
+g_togo   <- graph(togo, v = v_togo)
+g_caviar <- graph(caviar, v = v_caviar)
+g_cielnet  <- graph(cielnet, v = v_cielnet)
+g_cocaine  <- graph(cocaine, v = v_cocaine)
+g_heroin   <- graph(heroin, v = v_heroin)
+g_oversize <- graph(oversize, v = v_oversize)
+g_montagna <- graph(montagna, v = v_montagna)
+
+
+
+# append edgelists to create 'super network' -----------------------------------
+g_super <- rbind(
+  siren,
+  togo,
+  caviar,
+  cielnet,
+  cocaine,
+  heroin,
+  oversize,
+  montagna
+)
 
 # join into attribute data for super network
 v_super <- rbind(
@@ -192,7 +207,17 @@ v_super <- rbind(
   v_heroin,
   v_oversize,
   v_montagna
-  )
+)
+
+# construct super network with names and 'group membership'
+g_super <- igraph::graph_from_data_frame( # 'group membership' automatically assigned as a node attribute
+  g_super, 
+  directed = FALSE, 
+  vertices = v_super
+)
+g_super <- intergraph::asNetwork(g_super) # network object
+network::is.network(g_super) # check that graph is of type 'network'
+
 rm( # drop attribute data for individual networks
   v_siren,
   v_togo,
@@ -202,7 +227,7 @@ rm( # drop attribute data for individual networks
   v_heroin,
   v_oversize,
   v_montagna
-  )
+)
 rm( # drop edgelists for individual networks
   siren,
   togo,
@@ -215,15 +240,6 @@ rm( # drop edgelists for individual networks
   )
 
 
-
-# construct super network with names and 'group membership'
-g_super <- igraph::graph_from_data_frame( # 'group membership' automatically assigned as a node attribute
-  g_super, 
-  directed = FALSE, 
-  vertices = v_super
-  )
-g_super <- intergraph::asNetwork(g_super) # network object
-network::is.network(g_super) # check that graph is of type 'network'
 
 
 

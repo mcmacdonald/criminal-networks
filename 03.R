@@ -49,6 +49,18 @@ vuong = function(g){
   # required packages
   require("poweRlaw")
   
+  # interpretation of the goodness-of-fit test
+  cat("\n") # space
+  message("Vuong's likelihood ratio test is a sign test:")
+  message("* A likelihood-ratio test statistic > 0 suggests the degree distribution more closely resembles the shape of the power law distribution.")
+  message("* A likelihood-ratio test statistic < 0 suggests the degree distribution more closely resembles the shape of the log normal distribution.")
+  message("* A larger test statistic, in either dirtection, suggests better goodness-of-fit.")
+  cat("\n") # space
+  message("Hypothesis statements for Vuong's likelihood ratio test:")
+  message("    H0: The degree distribution does not resemble the shape of the power law or log normal distribution.")
+  message("    H1: The degree distribution resembles the shape of the power law or log normal distribution.")
+  cat("\n") # space
+  
   # degree distribution for the criminal networks
   d <- sna::degree(g, gmode = "graph", cmode = "freeman", rescale = FALSE)
   d <- d[order(d, decreasing = TRUE)]
@@ -58,24 +70,27 @@ vuong = function(g){
   alpha$setXmin(1) # for all degree k >= 1
   alpha$setPars(poweRlaw::estimate_pars(alpha))
   
-  # fit Poisson distribution
-  lambda = poweRlaw::dispois(d)
+  # fit log normal distribution
+  lambda = poweRlaw::dislnorm(d)
   lambda$setXmin(1) # for all degree k => 1
   lambda$setPars(poweRlaw::estimate_pars(lambda))
   
   # Vuong's likelihood-ratio test to compare models
   lrtest = poweRlaw::compare_distributions(alpha, lambda)
-  
-  # Vuong's LR test statistic 
-  lrstat = lrtest$test_statistic
-  cat("Vuong's LR test statistic = "); cat(lrstat ); cat("\n"); cat("\n")
-  
   # notes on the interpretation of Vuong's likelihood-ratio test statistic: 
   # the sign of the test statistic (i.e., +/-) has meaning for interpretation (Vuong's formula is a sign test)
   # because 'alpha' is the first input into the poweRlaw::compare_distributions() function and 'lambda' is the second:
   # ... a positive (+) test statistic suggests the degree distribution more so resembles the power law distribution
   # ... a negative (-) test statistic suggests the degree distribution more so resembles the Poisson distribution
   # ... reversing the input order in poweRlaw::compare_distributions() (i.e., 'lambda' before 'alpha') computes the same test statistic, but in the opposite direction
+  
+  # test results
+  message("Results of Vuong's likelihood ratio test:")
+  cat("\n") # space
+  
+  # Vuong's likelihood-ratio test statistic 
+  lrstat = lrtest$test_statistic
+  cat("Vuong's likelihood-ratio test statistic = "); cat(lrstat ); cat("\n"); cat("\n")
   
   # p-value (two-tailed)
   p = lrtest$p_two_sided
@@ -85,14 +100,18 @@ vuong = function(g){
   
   # interpretation:
   if(lrstat > 0){
-  message("A likelihood-ratio test statistic > 0 suggests the degree distribution more closely resembles the power law distribution.")
-  message("A larger test statistic suggests better goodness-of-fit.")
-  message("If p < 0.05, then reject the null hypothesis that the degree distribution does not resemble the power law distribution.")
-  } else {
-  message("The negative likelihood-ratio test statistic suggests the degree distribution more closely resembles the Poisson distribution.")
-  message("A larger test statistic suggests better goodness-of-fit.")
-  message("If p < 0.05, then reject the null hypothesis that the degree distribution does not resemble the Poisson distribution.")
-  }
+  message("The degree distribution more closely resembles the power law distribution.")
+    if(p < 0.05){
+  cat("\n")
+  message("Reject the null hypothesis that the degree distribution does not resemble the power law distribution.")
+     } else {"Fail to reject the null hypothesis that the degree distribution does not resemble the power law distribution."}
+    } else {
+  message("The degree distribution more closely resembles the log normal distribution.")
+    if(p < 0.05){
+    cat("\n") 
+    message("Reject the null hypothesis that the degree distribution does not resemble the log normal distribution.")
+     } else {"Fail to reject the null hypothesis that the degree distribution does not resemble the log normal distribution."}
+    }
 }
 # test results for the criminal networks
 vuong(g_siren)

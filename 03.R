@@ -212,9 +212,16 @@ ccdf_plot <- function(plot, line, title){
   # tutorial on how to plot poweRlaw() objects with ggplot2
   # https://rpubs.com/lgadar/power-law
   ccdf <- ggplot2::ggplot(plot) + 
-  ggplot2::geom_point(ggplot2::aes(x = x, y = y), shape = 21, size = 10, color = "black", fill = "white") +
-  ggplot2::labs(y = "LOGGED COMPLEMENTARY CUMULATIVE DISTRIBUTION FUNCTION (CCDF)", x = "LOGGED DEGREE") +
+  ggplot2::geom_point(ggplot2::aes(x = x, y = y), shape = 21, size = 5, color = "black", fill = "white") +
+  ggplot2::geom_line(data = line, ggplot2::aes(x = x, y = y), color = "firebrick1", linewidth = 2) +
   ggplot2::ggtitle(title) +
+  ggplot2::labs(y = "LOGGED CUMULATIVE DISTRIBUTION FUNCTION (CDF)", x = "LOGGED DEGREE") +
+  ggplot2::theme(
+    axis.text.x = ggplot2::element_text(color = "black", size = 8, hjust = 0.5, vjust = 0.5, face = "plain"),
+    axis.text.y = ggplot2::element_text(color = "black", size = 8, hjust = 1.0, vjust = 0.0, face = "plain"),  
+    axis.title.x = ggplot2::element_text(color = "black", size = 8, hjust = 0.5, vjust = 0.0, face = "plain"),
+    axis.title.y = ggplot2::element_text(color = "black", size = 8, hjust = 0.5, vjust = 0.5, face = "plain")
+    ) +
   # tutorial to add log scales and tick marks
   # https://www.datanovia.com/en/blog/ggplot-log-scale-transformation/
   ggplot2::scale_x_log10(breaks = scales::trans_breaks("log10", function(x) 10^x),
@@ -222,8 +229,7 @@ ccdf_plot <- function(plot, line, title){
   ggplot2::scale_y_log10(breaks = scales::trans_breaks("log10", function(x) 10^x),
                          labels = scales::trans_format("log10", math_format(10^.x))) +
   ggplot2::annotation_logticks(sides = "trbl") +
-  ggplot2::theme_bw() +
-  ggplot2::geom_line(data = line, ggplot2::aes(x = x, y = y), color = "firebrick1", linewidth = 2)
+  ggplot2::theme_bw()
 }
 ccdf_siren <- ccdf_plot(plot = plot_siren, line = line_siren, title = "(A) SIREN AUTO THEFT RING")
 ccdf_togo <- ccdf_plot(plot = plot_togo, line = line_togo, title = "(B) TOGO AUTO THEFT RING")
@@ -249,8 +255,15 @@ output <- function(plot, filename){
     dpi = 700
     )
 }
-output(plot = ccdf_siren, filename = "fig2a")
-
+output(plot = ccdf_siren, filename = "fig2a.pdf")
+output(plot = ccdf_togo, filename = "fig2b.pdf")
+output(plot = ccdf_caviar, filename = "fig2c.pdf")
+output(plot = ccdf_cielnet, filename = "fig2d.pdf")
+output(plot = ccdf_cocaine, filename = "fig2e.pdf")
+output(plot = ccdf_heroin, filename = "fig2f.pdf")
+output(plot = ccdf_oversize, filename = "fig2g.pdf")
+output(plot = ccdf_montagna, filename = "fig2h.pdf")
+output(plot = ccdf_super, filename = "fig2i.pdf")
 
 
 

@@ -201,8 +201,7 @@ b_super.rewire <- rewire(g_super)
 
 
 
-# check the assortativity coefficients calculated from the different methods
-# the rationale is that high correlation
+# test if the assortativity coefficients calculated from the different methods considerably differ from one another
 test <- function(x, y){
   x <- x[, 1]
   y <- y[, 1]

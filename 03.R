@@ -2,12 +2,6 @@
 
 # file 03: estimate the shape of the degree distributions of each graph
 
-# 'mlergm' package
-# https://cran.r-project.org/web/packages/mlergm/mlergm.pdf
-
-# don't run
-# install.package('mlergm')
-
 # last updated: 27/02/2025
 
 # ------------------------------------------------------------------------------------
@@ -237,8 +231,8 @@ ccdf_caviar <- ccdf_plot(plot = plot_caviar, line = line_cavair, title = "(C) CA
 ccdf_cielnet <- ccdf_plot(plot = plot_cielnet, line = line_cielnet, title = "(D) CIELNET DRUG TRAFFICKING ORGANIZATION")
 ccdf_cocaine <- ccdf_plot(plot = plot_cocaine, line = line_cocaine, title = "(E) LA COSA NOSTRA COCAINE TRAFFICKING OUTFIT")
 ccdf_heroin <- ccdf_plot(plot = plot_heroin, line = plot_heroin, title = "(F) NEW YORK CITY HEROIN TRAFFICKERS")
-ccdf_oversize <- ccdf_plot(plot = plot_oversize, line = plot_oversize, title = "(G) 'NDRANGHETA WIRETAPS")
-ccdf_montagna <- ccdf_plot(plot = plot_montagna, line = plot_montagna, title = "(H) COSA NOSTRA WIRETAPS")
+ccdf_oversize <- ccdf_plot(plot = plot_oversize, line = plot_oversize, title = "(G) 'NDRANGHETA WIRETAPS - OPERATION OVERSIZE")
+ccdf_montagna <- ccdf_plot(plot = plot_montagna, line = plot_montagna, title = "(H) COSA NOSTRA WIRETAPS - OPERATION MONTAGNA")
 ccdf_super <- ccdf_plot(plot = plot_super, line = line_super, title = "(I) SUPER POPULATION OF CRIMINAL NETWORKS")
 
 

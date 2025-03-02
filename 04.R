@@ -90,7 +90,7 @@ plot_assortativity <- function(coeff, random, title){
   histogram <- ggplot2::ggplot(random, ggplot2::aes( x = b ) ) + 
     # ggplot2::geom_histogram(ggplot2::aes(y = stat(density)), bins = 25, color = "black", fill = "white") +
     ggplot2::geom_histogram(bins = 100, color = "black", fill = "white") +
-    # line marker for the mean assortativity coefficent for the random networks
+    # line marker for the mean assortativity coefficient for the random networks
     ggplot2::geom_vline(ggplot2::aes(xintercept = mean(b)), color = "skyblue2", linewidth = 1, linetype = "dashed") +
     ggplot2::annotate(geom = "label", x = label1, y = 0.25, label = as.character(label1), size = 5) +
     # line marker for the assortativty coefficient for the actual networks

@@ -1,12 +1,6 @@
 #  -----------------------------------------------------------------------------------
 
-# file 04: estimate the hierarchical network model
-
-# 'mlergm' package
-# https://cran.r-project.org/web/packages/mlergm/mlergm.pdf
-
-# don't run
-# install.package('mlergm')
+# file 04: estimate the degree assortativity of each graph and compare them to random graphs with the same degree distribution
 
 # last updated: 27/02/2025
 
@@ -14,162 +8,146 @@
 
 
 
-# posterior parameter estimation ---------------------------------------------
-bayes <- function(y, x){
-  i <- nrow(y) * 2  # burn in iterations to begin the MCMC run 
-  k <-    250  # sample iterations
-  h <-    5 * 2   # chains in the posterior distribution ... approximately twice the number of model parameters 
-  n <-    h * k   # per Caimo & Friel (2011), auxiliary chain = # chains (h) * sample iterations (k)
-  # load 'bergm' package
-  require('Bergm')
-  set.seed(20110210) # Halle's birthday
-  bayes <- Bergm::bergm(
-    x, # equation
-    gamma = 0.1 # empirically, gamma ranges 0.1 - 1.5, where smaller gamma leads to better acceptance in big graphs
-  )
-  return(bayes)
+# calculate the degree assortativity coefficient of each of the criminal networks ------------------------------
+assortativity <- function(g){
+  # required packages
+  require('statnet'); require('igraph'); require('intergraph')
+  degcor <- igraph::assortativity_degree(
+    intergraph::asIgraph(g), 
+    directed = FALSE)
+  print(degcor)
 }
+b_siren <- assortativity(g_siren)
+b_togo <- assortativity(g_togo)
+b_caviar <- assortativity(g_caviar)
+b_cielnet <- assortativity(g_cielnet)
+b_cocaine <- assortativity(g_cocaine)
+b_heroin <- assortativity(g_heroin)
+b_oversize <- assortativity(g_oversize)
+b_montagna <- assortativity(g_montagna)
+b_super <- assortativity(g_super)
 
-# goodness-of-fit --------------------------------------------------------------
-GOF <- function(bayes){
-  set.seed(20110211) # Halle's birthday
-  n <- 100 # graph simulations
-  i <- 15 # degree distribution range
-  j <- 10 # geodisstance range 
-  k <- 15 # edgewise-shared partners range
-  fit <- Bergm::bgof(
-    bayes,
-    n.deg  = i,
-    n.dist = j,
-    n.esp  = k,
-    directed = F,    # symmetric graph
-    sample.size = n # random graph realizations
-  )
-  return(fit)
+
+
+# function to generate the degree assortativity coefficients of of random graphs the have similar degree distribution 
+sampler <- function(g, method){
+  
+  # required packages
+  require('statnet'); require('igraph'); require('intergraph')
+  
+  # set seed for replication purposes
+  set.seed(20190812) # Hayes' birthday
+  
+  # degree distribution
+  degrees <- igraph::degree(
+    graph = intergraph::asIgraph(g),
+    mode = "total",
+    loops = FALSE,
+    normalized = FALSE
+    )
+  degrees <- degrees[order(degrees, decreasing = FALSE)] # order from smallest to largest 
+  
+  # function to generate random graphs that have the same degree distribution
+  samples <- 10000 # number of random graphs to generate
+  results <- c() # results vector
+  for(i in 1:samples){
+    # sampling method of specific degree distribution
+    g_random <- igraph::sample_degseq( # https://igraph.org/r/html/1.2.5/sample_degseq.html
+      degrees, # degree distribution for the actual criminal networks
+      method = method # the method by which the function generates the random graphs
+      )
+    
+    # don't run
+    # confirm that the object is a simple, random graph
+    # print(igraph::is_simple(g_random)) # 'vl' method always generates simple, undirected random graphs
+    
+    # calculate assortativity coefficient for the random graphs
+    b <- igraph::assortativity_degree(g_random, directed = FALSE)
+    
+    # store the assortativity coefficients in the results vector
+    results <- c(results, b)
+  }
+  results <- as.data.frame(results)
+  colnames(results) <- c("b")
+  return(results)
 }
-
-# estimate the model -----------------------------------------------------------
-bayes_01.siren <- bayes(
-  y = g_siren,
-  x = g_siren ~ edges + 
-    gwdegree(decay = 3.0, fixed = TRUE) +
-    gwdsp(decay = 3.0, fixed = TRUE) +
-    gwesp(decay = 3.0, fixed = TRUE) +
-    degcor
-)
-summary(bayes_01.siren)
-
-# goodness-of-fit
-gof_01.siren <- GOF(bayes_01.siren)
-
-
-# estimate the model -----------------------------------------------------------
-bayes_02.togo <- bayes(
-  y = g_togo,
-  x = g_togo ~ edges + 
-    gwdegree(decay = 0.5, fixed = TRUE) +
-    gwdsp(decay = 3.0, fixed = TRUE) +
-    gwesp(decay = 3.0, fixed = TRUE) +
-    degcor
-)
-summary(bayes_02.togo)
-
-# goodness-of-fit
-gof_02.togo <- GOF(bayes_02.togo)
-
-
-# estimate the model -----------------------------------------------------------
-bayes_03.caviar <- bayes(
-  y = g_caviar,
-  x = g_caviar ~ edges + 
-    gwdegree(decay = 2.0, fixed = TRUE) +
-    gwdsp(decay = 1.0, fixed = TRUE) +
-    gwesp(decay = 2.0, fixed = TRUE) +
-    degcor
-)
-summary(bayes_03.caviar)
-
-# goodness-of-fit
-gof_03.caviar <- GOF(bayes_03.caviar)
-
-
-# estimate the model -----------------------------------------------------------
-bayes_04.cielnet <- bayes(
-  y = g_cielnet,
-  x = g_cielnet ~ edges + 
-    gwdegree(decay = 1.0, fixed = TRUE) +
-    gwdsp(decay = 0.2, fixed = TRUE) +
-    gwesp(decay = 0.2, fixed = TRUE) +
-    degcor
-)
-summary(bayes_04.cielnet)
-
-# goodness-of-fit
-gof_04.cielnet <- GOF(bayes_04.cielnet)
-
-
-# estimate the model -----------------------------------------------------------
-bayes_05.cocaine <- bayes(
-  y = g_cocaine,
-  x = g_cocaine ~ edges + 
-    gwdegree(decay = 1.5, fixed = TRUE) +
-    gwdsp(decay = 0.5, fixed = TRUE) +
-    gwesp(decay = 0.5, fixed = TRUE) +
-    degcor
-)
-summary(bayes_05.cocaine)
-
-# goodness-of-fit
-gof_05.cocaine <- GOF(bayes_05.cocaine)
-
-
-# estimate the model -----------------------------------------------------------
-bayes_06.heroin <- bayes(
-  y = g_heroin,
-  x = g_heroin ~ edges + 
-    gwdegree(decay = 2.5, fixed = TRUE) +
-    gwdsp(decay = 1.5, fixed = TRUE) +
-    gwesp(decay = 0.5, fixed = TRUE) +
-    degcor
-)
-summary(bayes_06.heroin)
-
-# goodness-of-fit
-gof_06.heroin <- GOF(bayes_06.heroin)
-
-
-# estimate the model -----------------------------------------------------------
-bayes_07.oversize <- bayes(
-  y = g_oversize,
-  x = g_oversize ~ edges + 
-    gwdegree(decay = 1.5, fixed = TRUE) +
-    gwdsp(decay = 1.5, fixed = TRUE) +
-    gwesp(decay = 0.5, fixed = TRUE) +
-    degcor
-)
-summary(bayes_07.oversize)
-
-# goodness-of-fit
-gof_07.oversize <- GOF(bayes_07.oversize)
-
-
-# estimate the model -----------------------------------------------------------
-bayes_08.montagna <- bayes(
-  y = g_montagna,
-  x = g_montagna ~ edges + 
-    gwdegree(decay = 2.0, fixed = TRUE) +
-    gwdsp(decay = 2.0, fixed = TRUE) +
-    gwesp(decay = 2.0, fixed = TRUE) +
-    degcor
-)
-summary(bayes_08.montagna)
-
-# goodness-of-fit
-gof_08.montagna <- GOF(bayes_08.montagna)
+b_siren.random <- sampler(g_siren, method = "vl")
+b_togo.random <- sampler(g_togo, method = "vl")
+b_cavair.random <- sampler(g_caviar, method = "vl")
+b_cielnet.random <- sampler(g_cielnet, method = "vl")
+b_cocaine.random <- sampler(g_cocaine, method = "vl")
+b_heroin.random <- sampler(g_heroin, method = "vl")
+b_oversize.random <- sampler(g_oversize, method = "vl")
+b_montagna.random <- sampler(g_montagna, method = "vl")
+b_super.random <- sampler(g_super, method = "vl")
 
 
 
+# plot histogram of the assortativity coefficients for the real and random graphs
+plot_assortativity <- function(coeff, random, title){
+  require('ggplot2'); require('scales'); library('ggplot2')
+  label1 <- mean(random$b); label1 <- round(label1, digits = 2) # label to annotate the mean coefficient of the random networks
+  label2 <- round(coeff, digits = 2) # label t0o annotate the coefficient for the criminal networks
+  histogram <- ggplot2::ggplot(random, ggplot2::aes( x = b ) ) + 
+    # ggplot2::geom_histogram(ggplot2::aes(y = stat(density)), bins = 25, color = "black", fill = "white") +
+    ggplot2::geom_histogram(bins = 100, color = "black", fill = "white") +
+    # line marker for the mean assortativity coefficent for the random networks
+    ggplot2::geom_vline(ggplot2::aes(xintercept = mean(b)), color = "skyblue2", linewidth = 1, linetype = "dashed") +
+    ggplot2::annotate(geom = "label", x = label1, y = 0.25, label = as.character(label1), size = 5) +
+    # line marker for the assortativty coefficient for the actual networks
+    ggplot2::geom_vline(ggplot2::aes(xintercept = coeff), colour = "firebrick1", linewidth = 1, linetype = "dashed") +
+    ggplot2::annotate(geom = "label", x = label2, y = 0.25, label = as.character(label2), size = 5) +
+    # transform y-axis to percentage scale
+    ggplot2::aes(y = after_stat(count)/sum(after_stat(count))) + 
+    ggplot2::scale_y_continuous(
+      name = "PROBABILITY DENSITY FUNCTION (PDF)", 
+      labels = scales::percent_format(accuracy = 1L), # 2L to round to one decimal place, 3L to round to two decimal places, etc.
+      limits = c(0.00, 0.29), 
+      breaks = c(0.00, 0.05, 0.10, 0.15, 0.20, 0.25)
+      ) +
+    ggplot2::scale_x_continuous(
+      name = "DEGREE ASSORTATIVITY COEFFICIENT",
+      labels = scales::label_number(accuracy = 0.01),
+      limits = c(-0.52, 0.00),
+      breaks = c(-0.50, -0.40, -0.30, -0.20, -0.10, 0.00)
+      ) +
+    ggplot2::ggtitle(title) +
+    ggthemes::theme_clean()
+  return(histogram)
+}
+assortativity_siren <- plot_assortativity(coeff = b_siren, random = b_siren.random, title = "(A) SIREN AUTO THEFT RING")
+assortativity_togo <- plot_assortativity(coeff = b_togo, random = b_togo.random, title = "(B) TOGO AUTO THEFT RING")
+assortativity_caviar <- plot_assortativity(coeff = b_caviar, random = b_cavair.random, title = "(C) CAVAIR DRUG TRAFFICKING ORGANIZATION")
+assortativity_cielnet <- plot_assortativity(coeff = b_cielnet, random = b_cielnet.random, title = "(D) CIELNET DRUG TRAFFICKING ORGANIZATION")
+assortativity_cocaine <- plot_assortativity(coeff = b_cocaine, random = b_cocaine.random, title = "(E) LA COSA NOSTRA COCAINE TRAFFICKING OUTFIT")
+assortativity_heroin <- plot_assortativity(coeff = b_heroin, random = b_heroin.random, title = "(F) NEW YORK CITY HEROIN TRAFFICKERS")
+assortativity_oversize <- plot_assortativity(coeff = b_oversize, random = b_oversize.random, title = "(G) 'NDRANGHETA WIRETAPS - OPERATION OVERSIZE")
+assortativity_montagna <- plot_assortativity(coeff = b_montagna, random = b_montagna.random, title = "(H) COSA NOSTRA WIRETAPS - OPERATION MONTAGNA")
+assortativity_super <- plot_assortativity(coeff = b_super, random = b_super.random, title = "(I) SUPER POPULATION OF CRIMINAL NETWORKS")
 
+
+
+# output high resolution images
+output <- function(plot, filename){
+  ggplot2::ggsave(
+    filename,
+    plot,
+    path = "~/Desktop", 
+    width = 5, 
+    height = 5, 
+    device = 'pdf', 
+    dpi = 700
+  )
+}
+output(plot = assortativity_siren, filename = "fig3a.pdf")
+output(plot = assortativity_togo, filename = "fig3b.pdf")
+output(plot = assortativity_caviar, filename = "fig3c.pdf")
+output(plot = assortativity_cielnet, filename = "fig3d.pdf")
+output(plot = assortativity_cocaine, filename = "fig3e.pdf")
+output(plot = assortativity_heroin, filename = "fig3f.pdf")
+output(plot = assortativity_oversize, filename = "fig3g.pdf")
+output(plot = assortativity_montagna, filename = "fig3h.pdf")
+output(plot = assortativity_super, filename = "fig3i.pdf")
 
 
 
@@ -179,188 +157,75 @@ gof_08.montagna <- GOF(bayes_08.montagna)
 
 
 
-
-# write equations --------------------------------------------------------------
-x_01 = g_mob ~
-  edges                            + 
-  gwdegree(decay = 3, fixed = T)   +
-  gwdsp(decay = 1, fixed = T)      +
-  gwesp(decay = 1, fixed = T)      +
-  degcor                           +
-  nodefactor('family')             +
-  nodefactor('rank', levels=-6)    +
-  dyadcov(g_Family)                +
-  dyadcov(g_upper)                 +
-  dyadcov(g_lower)                 +
-  dyadcov(d_upper)                 +
-  dyadcov(d_lower)                 +
-  # hierarchical relations by subgraph -----------------------------------------
-S(~edges + 
-    gwdegree(decay = 1, fixed = T) + 
-    gwdsp(decay = 1, fixed = T)    + 
-    gwesp(decay = 1, fixed = T)    ,
-  ~(family == c("1_bonanno" )
-  )
-)
-
-
-
-# hierarchical relations by subgraph -----------------------------------------
-S(~nodemix('rank_c'), ~(family_c == c("1_bonanno" )))     +
-  # S(~nodemix('rank_c'), ~(family_c == c("2_decavalcante"))) +
-  S(~nodemix('rank_c'), ~(family_c == c("3_gambino" )))     +
-  S(~nodemix('rank_c'), ~(family_c == c("4_genovese")))     +
-  S(~nodemix('rank_c'), ~(family_c == c("5_lucchese")))     +
-  S(~nodemix('rank_c'), ~(family_c == c("6_profaci" )))     +
-  
-  
-  
-  
-  
-  
-  
-  #################################################################################
-
-
-# construct the supergraph as a 'mlergm' object
-g_super <- mlergm::mlnet(
-  network = g_super, 
-  node_memb = network::get.vertex.attribute(g_super, "group")
-)
-# check that graph is of type multi-level network
-mlergm::is.mlnet(g_super)
-# plot the super network
-plot(g_super, arrow.size = 2.5, arrow.gap = 0.025)
-
-
-
-# estimate the model
-model <- mlergm::mlergm(
-  g_super ~ edges + 
-    gwdegree(decay = 1.0, cutoff = 100) + 
-    gwdsp(decay = 1.0) + 
-    gwesp(decay = 1.0),
-  parameterization = 'offset',
-  options = set_options(
-    burnin = 10000,
-    interval = 1000,
-    sample_size = 100000,
-    NR_tol = 1e-04,
-    NR_max_iter = 50,
-    MCMLE_max_iter = 10,
-    do_parallel = TRUE,
-    # NR_step_len = 10
-    adaptive_step_len = TRUE
-  ),
-  verbose = 2, # = 2 prints the full output
-  seed = 123
-)
-summary(model_est)
-
-# goodness-of-fit plots
-model_gof <- mlergm::gof(model)
-plot(
-  gof_res, 
-  cutoff = 15, 
-  pretty_x = TRUE
-)
-
-
-
-
-
-# function to estimate exponential random graph models --------------------------------------------------------------------
-ERGM <- function(g, x){
-  n <- nrow(g)
-  k <- n * 100000 # 100,000 iterations per node
-  b <- ergm::ergm(
-    x, # mdoel specifciation
-    estimate = 'MPLE',
-    control = ergm::control.ergm(
-      main.method = 'MCMLE', # see Snijders & van Duijn (2002) for info on 'Robbins-Monro' method
-      MCMC.burnin = k,   # 'more is better' ... = v x 100,000
-      MCMC.interval = k, # 'more is better' ... = v x 100,000
-      MCMC.prop.weights = 'TNT', # faster convergence when paired with 'MPLE'
-      seed = 20110210 # to replicate ERGM
-    ),
-    verbose = TRUE    # ... for networks with overall low density
-  )
-  print(summary(b))  # print results
-  print(confint(b, level = 0.95)) # 95% confidence intervals
-  return(b) # return ergm object
-}
-# pass model specifciations through function to estimate models 
-model_01.siren <- ERGM(
-  g = g_siren,
-  x = g_siren ~ 
-    edges + 
-    gwdegree(decay = 3, fixed = TRUE) +
-    gwdsp(decay = 1, fixed = TRUE) +
-    gwesp(decay = 1, fixed = TRUE) +
-    degcor
-)
-model_02.togo <- ERGM(
-  g = g_siren,
-  x = g_siren ~ 
-    edges + 
-    gwdegree(decay = 3, fixed = TRUE) +
-    gwdsp(decay = 1, fixed = TRUE) +
-    gwesp(decay = 1, fixed = TRUE) +
-    degcor
-)
-
-
-
-# Bayesian exponential random graphs -------------------------------------------
-
-# first, compute Bayesian priors ---------------------------------------------
-
-# function to compute variance-covariance structure
-sigma <- function(b){
-  n <- length(unlist(b))
-  s <- matrix(0:0, nrow = n, ncol = n) # where 'input' = number ERGM parameters 
-  diag(s) <- 1 # set diagonals = 1
-  return(s) # return matrix
-}
-
 # don't run
-# compute vector of the multivariate normal priors outside of function
-# mu_05 <- model_05$coefficients # model parameters
-# sd_05 <- sigma(mu = mu_05) # variance-covariance structure/matrix
-# diag(sd_01) <- coef(summary(rep_01))[, "Std. Error"]
+# this function rewires the edges of each graph instead of randomly generating one through sampler() function 
 
-# function to compute vector of the multivariate normal priors
-vcov_ergm <- function(model){
-  b <- model$coefficients
-  vcov <- sigma(b) # embed prior function
-  diag(vcov) <- coef(summary(model))[, "Std. Error"]
-  return(vcov)
+# function to rewire edges of graph, but keeping the original degree distribution intact
+rewire <- function(g){
+  
+  # required packages
+  require('statnet'); require('igraph'); require('intergraph'); require("magrittr")
+  
+  # set seed for replication purposes
+  set.seed(20190812) # Hayes' birthday
+  
+  # call pipe to string functions together
+  `%>%` <- magrittr::`%>%`
+  # function to rewire the graph while keeping the original degree distribution intact
+  samples <- 10000 # number of edges to rewire
+  results <- c() # results vector
+  for(i in 1:samples){
+  g_rewire <- intergraph::asIgraph(g) %>% 
+    igraph::rewire(igraph::keeping_degseq(niter = samples, loops = FALSE))
+  # print_all(igraph::rewire(g, with = igraph::keeping_degseq(niter = igraph::vcount(g) * 10)))
+  
+  # calculate assortativity coefficient for the random graphs
+  b <- igraph::assortativity_degree(g_rewire, directed = FALSE)
+  
+  # store the assortativity coefficients in the results vector
+  results <- c(results, b)
+  }
+  results <- as.data.frame(results)
+  colnames(results) <- c("b")
+  return(results)
 }
-vcov_01.siren <- vcov_ergm(model_01.siren)
+b_siren.rewire <- rewire(g_siren)
+b_togo.rewire <- rewire(g_togo)
+b_caviar.rewire <- rewire(g_caviar)
+b_cielnet.rewire <- rewire(g_cielnet)
+b_cocaine.rewire <- rewire(g_cocaine)
+b_heroin.rewire <- rewire(g_heroin)
+b_oversize.rewire <- rewire(g_oversize)
+b_montagna.rewire <- rewire(g_montagna)
+b_super.rewire <- rewire(g_super)
 
 
 
-
-
-
-# posterior parameter estimation ---------------------------------------------
-bayes <- function(g, x, npar, p, s){
-  i <- nrow(g) * 2  # burn in iterations to begin the MCMC run 
-  k <-    250  # sample iterations
-  h <-    ergm::nparam(npar) * 2   # chains in the posterior distribution ... approximately twice the ERGM parameters 
-  n <-    h * k   # per Caimo & Friel (2011), auxiliary chain = # chains (h) * sample iterations (k)
-  # load 'bergm' package
-  require('Bergm')
-  set.seed(20110210) # Halle's birthday
-  bayes <- Bergm::bergm(
-    x,              # equation
-    burn.in = i,     # burn ins
-    main.iters = k,  # sample iterations
-    aux.iters = n,   # auxiliary chains 
-    nchains = h,     # essentially the # chains in the posterior distribution
-    prior.mean = p,  # prior means
-    prior.sigma = s, # prior variance/covariance structure
-    gamma = 0.1      # empirically, gamma ranges 0.1 - 1.5, where smaller gamma leads to better acceptance in big graphs
-  )
-  return(bayes)
+# check the assortativity coefficients calculated from the different methods
+# the rationale is that high correlation
+test <- function(x, y){
+  x <- x[, 1]
+  y <- y[, 1]
+  # 'independence test' of the data generating process
+  message("Pearson correlation (r) of the assortativity coefficients calculated from the different methods:")
+  r <- cor(x, y, method = "pearson"); cat(r); cat("\n"); cat("\n")
+  message("... r should be approximately 0.00 if each method to generate is independent of the other.")
+  # calculate the sample means
+  message("Average assortativity coefficient for the sampler function:")
+  cat(mean(x)); cat("\n"); cat("\n")
+  message("Average degree assortativity coefficient for the rewire function:")
+  cat(mean(y)); cat("\n"); cat("\n")
 }
+test(x = b_siren.random, y = b_siren.rewire)
+test(x = b_togo.random, y = b_togo.rewire)
+test(x = b_cavair.random, y = b_caviar.rewire)
+test(x = b_cielnet.random, y = b_cielnet.rewire)
+test(x = b_cocaine.random, y = b_cocaine.rewire)
+test(x = b_heroin.random, y = b_heroin.rewire)
+test(x = b_oversize.random, y = b_oversize.rewire)
+test(x = b_montagna.random, y = b_montagna.rewire)
+test(x = b_super.random, y = b_super.rewire)
+
+
+
+

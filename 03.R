@@ -37,7 +37,7 @@ cdf_degree(g_super)
 
 
 
-# compare Vuong's likelihood ratio test for goodness-of-fit of power law distribution ----------------------------------------------------------------
+# Vuong's likelihood ratio test for goodness-of-fit for the power law distribution ----------------------------------------------------------------
 vuong_power.law = function(g){
   
   # required packages
@@ -120,7 +120,7 @@ vuong_power.law(g_super)
 
 
 
-# compare Vuong's likelihood ratio test for goodness-of-fit of power law distribution ----------------------------------------------------------------
+# Vuong's likelihood ratio test for goodness-of-fit for the exponential distribution ----------------------------------------------------------------
 vuong_exponential = function(g){
   
   # required packages
@@ -203,7 +203,7 @@ vuong_exponential(g_super)
 
 
 
-# compare Vuong's likelihood ratio test for goodness-of-fit of power law distribution ----------------------------------------------------------------
+# Vuong's likelihood ratio test for goodness-of-fit for the Poisson law distribution ----------------------------------------------------------------
 vuong_Poisson = function(g){
   
   # required packages

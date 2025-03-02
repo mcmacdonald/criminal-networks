@@ -1,6 +1,6 @@
 #  -----------------------------------------------------------------------------------------------------------------------------
 
-# file 05: estimate the clustering coefficent of each graph and compare them to random graphs with the same degree distribution
+# file 05: estimate the clustering coefficient of each graph and compare them to random graphs
 
 # last updated: 27/02/2025
 

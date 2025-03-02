@@ -36,6 +36,12 @@ cdf_degree(g_montagna)
 cdf_degree(g_super)
 
 
+# first, estimate the shape of the degree distribution and test it against different statistical distributions
+# start from the assumption that the degree is log-normal... Broido and Clauset 2019 find that most social networks produce log-normal degree distributions
+# 1) compare to the power law distribution, another heavy tailed distribution
+# 2) compare to the exponential distribution, a statistical distribution that does not have a heavy tail
+# 3) compare to the Poisson distribution, a statistical distribution that does not have a heavy tail
+
 
 # Vuong's likelihood ratio test for goodness-of-fit for the power law distribution ----------------------------------------------------------------
 vuong_power.law = function(g){
@@ -263,7 +269,7 @@ vuong_Poisson = function(g){
     message("The degree distribution more closely resembles the Poisson distribution.")
     if(p < 0.05){
       cat("\n")
-      message("Reject the null hypothesis that the degree distribution does not resemble the exponential distribution.")
+      message("Reject the null hypothesis that the degree distribution does not resemble the Poisson distribution.")
     } else {"Fail to reject the null hypothesis that the degree distribution does not resemble the Poisson distribution."}
   } else {
     message("The degree distribution more closely resembles the log normal distribution.")

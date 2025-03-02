@@ -8,7 +8,6 @@
 
 
 
-
 # plot complimentary cumulative degree distribution ----------------------------------
 cdf_degree <- function(g){
   par(mfrow=c(1,1)) # plot dimensions

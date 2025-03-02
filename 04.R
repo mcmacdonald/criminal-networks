@@ -7,6 +7,7 @@
 #  ----------------------------------------------------------------------------------------------------------------------------
 
 
+
 # calculate the degree assortativity coefficient of each of the criminal networks ------------------------------
 assortativity <- function(g){
   # required packages

@@ -38,7 +38,7 @@ cdf_degree(g_super)
 
 
 # compare Vuong's likelihood ratio test for goodness-of-fit of power law distribution ----------------------------------------------------------------
-vuong = function(g){
+vuong_power.law = function(g){
   
   # required packages
   require("poweRlaw")
@@ -108,15 +108,181 @@ vuong = function(g){
     }
 }
 # test results for the criminal networks
-vuong(g_siren)
-vuong(g_togo)
-vuong(g_caviar)
-vuong(g_cielnet)
-vuong(g_cocaine)
-vuong(g_heroin)
-vuong(g_oversize)
-vuong(g_montagna)
-vuong(g_super)
+vuong_power.law(g_siren)
+vuong_power.law(g_togo)
+vuong_power.law(g_caviar)
+vuong_power.law(g_cielnet)
+vuong_power.law(g_cocaine)
+vuong_power.law(g_heroin)
+vuong_power.law(g_oversize)
+vuong_power.law(g_montagna)
+vuong_power.law(g_super)
+
+
+
+# compare Vuong's likelihood ratio test for goodness-of-fit of power law distribution ----------------------------------------------------------------
+vuong_exponential = function(g){
+  
+  # required packages
+  require("poweRlaw")
+  
+  # interpretation of the goodness-of-fit test
+  cat("\n") # space
+  message("Vuong's likelihood ratio test is a sign test:")
+  message("* A likelihood-ratio test statistic > 0 suggests the degree distribution more closely resembles the shape of the exponential distribution.")
+  message("* A likelihood-ratio test statistic < 0 suggests the degree distribution more closely resembles the shape of the log normal distribution.")
+  message("* A larger test statistic, in either dirtection, suggests better goodness-of-fit.")
+  cat("\n") # space
+  message("Hypothesis statements for Vuong's likelihood ratio test:")
+  message("    H0: The degree distribution does not resemble the shape of the exponential or log normal distribution.")
+  message("    H1: The degree distribution resembles the shape of the exponential or log normal distribution.")
+  cat("\n") # space
+  
+  # degree distribution for the criminal networks
+  d <- sna::degree(g, gmode = "graph", cmode = "freeman", rescale = FALSE)
+  d <- d[order(d, decreasing = TRUE)]
+  
+  # fit exponential distribution
+  lambda = poweRlaw::disexp(d)
+  lambda$setXmin(1) # for all degree k >= 1
+  lambda$setPars(poweRlaw::estimate_pars(lambda))
+  
+  # fit log normal distribution
+  mu = poweRlaw::dislnorm(d)
+  mu$setXmin(1) # for all degree k => 1
+  mu$setPars(poweRlaw::estimate_pars(mu))
+  
+  # Vuong's likelihood-ratio test to compare models
+  lrtest = poweRlaw::compare_distributions(lambda, mu)
+  # notes on the interpretation of Vuong's likelihood-ratio test statistic: 
+  # the sign of the test statistic (i.e., +/-) has meaning for interpretation (Vuong's formula is a sign test)
+  # because 'alpha' is the first input into the poweRlaw::compare_distributions() function and 'mu' is the second:
+  # ... a positive (+) test statistic suggests the degree distribution more so resembles the power law distribution
+  # ... a negative (-) test statistic suggests the degree distribution more so resembles the log normal distribution
+  # ... reversing the input order in poweRlaw::compare_distributions() (i.e., 'mu' before 'alpha') computes the same test statistic, but in the opposite direction
+  
+  # test results
+  message("Results of Vuong's likelihood ratio test:")
+  cat("\n") # space
+  
+  # Vuong's likelihood-ratio test statistic 
+  lrstat = lrtest$test_statistic
+  cat("Vuong's likelihood-ratio test statistic = "); cat(lrstat ); cat("\n"); cat("\n")
+  
+  # p-value (two-tailed)
+  p = lrtest$p_two_sided
+  # if p < 0.05, reject H0: the degree distribution neither resembles the power law distribution or Poisson distribution
+  # if p > 0.05, fail to reject H1: degree distribution resemebles power law distribution or Poisson distribution (see notes on Vuong's likelihood-ratio test)
+  cat( "p-value = "); cat(p); cat("\n"); cat("\n")
+  
+  # interpretation:
+  if(lrstat > 0){
+    message("The degree distribution more closely resembles the exponential distribution.")
+    if(p < 0.05){
+      cat("\n")
+      message("Reject the null hypothesis that the degree distribution does not resemble the exponential distribution.")
+    } else {"Fail to reject the null hypothesis that the degree distribution does not resemble the exponential distribution."}
+  } else {
+    message("The degree distribution more closely resembles the log normal distribution.")
+    if(p < 0.05){
+      cat("\n") 
+      message("Reject the null hypothesis that the degree distribution does not resemble the log normal distribution.")
+    } else {"Fail to reject the null hypothesis that the degree distribution does not resemble the log normal distribution."}
+  }
+}
+# test results for the criminal networks
+vuong_exponential(g_siren)
+vuong_exponential(g_togo)
+vuong_exponential(g_caviar)
+vuong_exponential(g_cielnet)
+vuong_exponential(g_cocaine)
+vuong_exponential(g_heroin)
+vuong_exponential(g_oversize)
+vuong_exponential(g_montagna)
+vuong_exponential(g_super)
+
+
+
+# compare Vuong's likelihood ratio test for goodness-of-fit of power law distribution ----------------------------------------------------------------
+vuong_Poisson = function(g){
+  
+  # required packages
+  require("poweRlaw")
+  
+  # interpretation of the goodness-of-fit test
+  cat("\n") # space
+  message("Vuong's likelihood ratio test is a sign test:")
+  message("* A likelihood-ratio test statistic > 0 suggests the degree distribution more closely resembles the shape of the Poisson distribution.")
+  message("* A likelihood-ratio test statistic < 0 suggests the degree distribution more closely resembles the shape of the log normal distribution.")
+  message("* A larger test statistic, in either dirtection, suggests better goodness-of-fit.")
+  cat("\n") # space
+  message("Hypothesis statements for Vuong's likelihood ratio test:")
+  message("    H0: The degree distribution does not resemble the shape of the Poisson or log normal distribution.")
+  message("    H1: The degree distribution resembles the shape of the Poisson or log normal distribution.")
+  cat("\n") # space
+  
+  # degree distribution for the criminal networks
+  d <- sna::degree(g, gmode = "graph", cmode = "freeman", rescale = FALSE)
+  d <- d[order(d, decreasing = TRUE)]
+  
+  # fit exponential distribution
+  lambda = poweRlaw::dispois(d)
+  lambda$setXmin(1) # for all degree k >= 1
+  lambda$setPars(poweRlaw::estimate_pars(lambda))
+  
+  # fit log normal distribution
+  mu = poweRlaw::dislnorm(d)
+  mu$setXmin(1) # for all degree k => 1
+  mu$setPars(poweRlaw::estimate_pars(mu))
+  
+  # Vuong's likelihood-ratio test to compare models
+  lrtest = poweRlaw::compare_distributions(lambda, mu)
+  # notes on the interpretation of Vuong's likelihood-ratio test statistic: 
+  # the sign of the test statistic (i.e., +/-) has meaning for interpretation (Vuong's formula is a sign test)
+  # because 'alpha' is the first input into the poweRlaw::compare_distributions() function and 'mu' is the second:
+  # ... a positive (+) test statistic suggests the degree distribution more so resembles the power law distribution
+  # ... a negative (-) test statistic suggests the degree distribution more so resembles the log normal distribution
+  # ... reversing the input order in poweRlaw::compare_distributions() (i.e., 'mu' before 'alpha') computes the same test statistic, but in the opposite direction
+  
+  # test results
+  message("Results of Vuong's likelihood ratio test:")
+  cat("\n") # space
+  
+  # Vuong's likelihood-ratio test statistic 
+  lrstat = lrtest$test_statistic
+  cat("Vuong's likelihood-ratio test statistic = "); cat(lrstat ); cat("\n"); cat("\n")
+  
+  # p-value (two-tailed)
+  p = lrtest$p_two_sided
+  # if p < 0.05, reject H0: the degree distribution neither resembles the power law distribution or Poisson distribution
+  # if p > 0.05, fail to reject H1: degree distribution resemebles power law distribution or Poisson distribution (see notes on Vuong's likelihood-ratio test)
+  cat( "p-value = "); cat(p); cat("\n"); cat("\n")
+  
+  # interpretation:
+  if(lrstat > 0){
+    message("The degree distribution more closely resembles the Poisson distribution.")
+    if(p < 0.05){
+      cat("\n")
+      message("Reject the null hypothesis that the degree distribution does not resemble the exponential distribution.")
+    } else {"Fail to reject the null hypothesis that the degree distribution does not resemble the Poisson distribution."}
+  } else {
+    message("The degree distribution more closely resembles the log normal distribution.")
+    if(p < 0.05){
+      cat("\n") 
+      message("Reject the null hypothesis that the degree distribution does not resemble the log normal distribution.")
+    } else {"Fail to reject the null hypothesis that the degree distribution does not resemble the log normal distribution."}
+  }
+}
+# test results for the criminal networks
+vuong_Poisson(g_siren)
+vuong_Poisson(g_togo)
+vuong_Poisson(g_caviar)
+vuong_Poisson(g_cielnet)
+vuong_Poisson(g_cocaine)
+vuong_Poisson(g_heroin)
+vuong_Poisson(g_oversize)
+vuong_Poisson(g_montagna)
+vuong_Poisson(g_super)
 
 
 
@@ -167,7 +333,6 @@ mle_heroin <- mle(g_heroin, sims = 10000)
 mle_oversize <- mle(g_oversize, sims = 10000)
 mle_montagna <- mle(g_montagna, sims = 10000)
 mle_super <- mle(g_super, sims = 10000)
-
 
 
 # plot the degree distribution for each of the criminal networks

@@ -186,6 +186,7 @@ gof_09.super <- GOF(bayes_09.super)
 
 
 # estimate the model -----------------------------------------------------------
+# note: can't estimate degree assortativity i.e., 'degcor' in the subgraph estimates
 bayes_10.super <- bayes(
   y = g_super,
   x = g_super ~ edges + 

@@ -86,7 +86,7 @@ bayes_03.caviar <- bayes(
     gwdsp(decay = 1.0, fixed = TRUE) +
     gwesp(decay = 2.0, fixed = TRUE) +
     degcor
-)
+    )
 summary(bayes_03.caviar)
 
 # goodness-of-fit
@@ -161,13 +161,108 @@ bayes_08.montagna <- bayes(
     gwdsp(decay = 2.0, fixed = TRUE) +
     gwesp(decay = 2.0, fixed = TRUE) +
     degcor
-)
+    )
 summary(bayes_08.montagna)
 
 # goodness-of-fit
 gof_08.montagna <- GOF(bayes_08.montagna)
 
 
+
+# estimate the model -----------------------------------------------------------
+g_super <- intergraph::asNetwork(igraph::simplify(intergraph::asIgraph(g_super)))
+bayes_09.super <- bayes(
+  y = g_super,
+  x = g_super ~ edges + 
+    gwdegree(decay = 0.1, fixed = TRUE) +
+    gwdsp(decay = 0.1, fixed = TRUE) +
+    gwesp(decay = 1.0, fixed = TRUE) +
+    degcor
+    )
+summary(bayes_09.super)
+
+# goodness-of-fit
+gof_09.super <- GOF(bayes_09.super)
+
+
+# estimate the model -----------------------------------------------------------
+bayes_10.super <- bayes(
+  y = g_super,
+  x = g_super ~ edges + 
+    gwdegree(decay = 0.1, fixed = TRUE) +
+    gwdsp(decay = 0.1, fixed = TRUE) +
+    gwesp(decay = 1.0, fixed = TRUE) +
+    degcor +
+  # subgraph estimates for different 'groups' of the super network -------------
+  # siren auto theft ring
+  S(~edges + 
+      gwdegree(decay = 3.0, fixed = TRUE) + 
+      gwdsp(decay = 3.0, fixed = TRUE)    + 
+      gwesp(decay = 3.0, fixed = TRUE)    ,
+    ~(group == c("siren")
+    )
+  ) +
+  # togo auto theft ring
+  S(~edges + 
+      gwdegree(decay = 0.5, fixed = T) + 
+      gwdsp(decay = 3.0, fixed = T)    + 
+      gwesp(decay = 3.0, fixed = T)    ,
+    ~(group == c("togo")
+    )
+  # caviar drug trafficking organization
+  ) +
+  S(~edges + 
+      gwdegree(decay = 2.0, fixed = T) + 
+      gwdsp(decay = 1.0, fixed = T)    + 
+      gwesp(decay = 2.0, fixed = T)    ,
+    ~(group == c("caviar")
+    )
+  ) +
+  # cielnet drug trafficking organization
+  S(~edges + 
+      gwdegree(decay = 1.0, fixed = T) + 
+      gwdsp(decay = 0.2, fixed = T)    + 
+      gwesp(decay = 0.2, fixed = T)    ,
+    ~(group == c("cielnet")
+    )
+  ) +
+  # La Cosa Nostra cocaine trafficking outfit
+  S(~edges + 
+      gwdegree(decay = 1.5, fixed = T) + 
+      gwdsp(decay = 0.5, fixed = T)    + 
+      gwesp(decay = 0.5, fixed = T)    ,
+    ~(group == c("cocaine")
+     )
+    ) +
+  # New York City heroin traffickers
+  S(~edges + 
+      gwdegree(decay = 2.5, fixed = T) + 
+      gwdsp(decay = 1.5, fixed = T)    + 
+      gwesp(decay = 0.5, fixed = T)    ,
+    ~(group == c("heroin")
+      )
+    ) +
+  # 'Ndrangheta wiretap records -- operation oversize
+  S(~edges + 
+      gwdegree(decay = 1.5, fixed = T) + 
+      gwdsp(decay = 1.5, fixed = T)    + 
+      gwesp(decay = 0.5, fixed = T)    ,
+    ~(group == c("oversize")
+      )
+    ) +
+  # Cosa Nostra wiretap records -- operation montagna 
+  S(~edges + 
+      gwdegree(decay = 2.0, fixed = T) + 
+      gwdsp(decay = 2.0, fixed = T)    + 
+      gwesp(decay = 2.0, fixed = T)    ,
+    ~(group == c("montagna")
+    )
+  )
+)
+summary(bayes_10.super)
+
+# goodness-of-fit
+gof_10.super <- GOF(bayes_10.super)
 
 
 
@@ -180,45 +275,13 @@ gof_08.montagna <- GOF(bayes_08.montagna)
 
 
 
-# write equations --------------------------------------------------------------
-x_01 = g_mob ~
-  edges                            + 
-  gwdegree(decay = 3, fixed = T)   +
-  gwdsp(decay = 1, fixed = T)      +
-  gwesp(decay = 1, fixed = T)      +
-  degcor                           +
-  nodefactor('family')             +
-  nodefactor('rank', levels=-6)    +
-  dyadcov(g_Family)                +
-  dyadcov(g_upper)                 +
-  dyadcov(g_lower)                 +
-  dyadcov(d_upper)                 +
-  dyadcov(d_lower)                 +
-  # hierarchical relations by subgraph -----------------------------------------
-S(~edges + 
-    gwdegree(decay = 1, fixed = T) + 
-    gwdsp(decay = 1, fixed = T)    + 
-    gwesp(decay = 1, fixed = T)    ,
-  ~(family == c("1_bonanno" )
-  )
-)
 
 
+  
+  
+  
+  
 
-# hierarchical relations by subgraph -----------------------------------------
-S(~nodemix('rank_c'), ~(family_c == c("1_bonanno" )))     +
-  # S(~nodemix('rank_c'), ~(family_c == c("2_decavalcante"))) +
-  S(~nodemix('rank_c'), ~(family_c == c("3_gambino" )))     +
-  S(~nodemix('rank_c'), ~(family_c == c("4_genovese")))     +
-  S(~nodemix('rank_c'), ~(family_c == c("5_lucchese")))     +
-  S(~nodemix('rank_c'), ~(family_c == c("6_profaci" )))     +
-  
-  
-  
-  
-  
-  
-  
   #################################################################################
 
 
@@ -364,3 +427,14 @@ bayes <- function(g, x, npar, p, s){
   )
   return(bayes)
 }
+
+
+# hierarchical relations by subgraph -----------------------------------------
+S(~nodemix('rank_c'), ~(family_c == c("1_bonanno" )))     +
+  # S(~nodemix('rank_c'), ~(family_c == c("2_decavalcante"))) +
+  S(~nodemix('rank_c'), ~(family_c == c("3_gambino" )))     +
+  S(~nodemix('rank_c'), ~(family_c == c("4_genovese")))     +
+  S(~nodemix('rank_c'), ~(family_c == c("5_lucchese")))     +
+  S(~nodemix('rank_c'), ~(family_c == c("6_profaci" )))     +
+  
+  

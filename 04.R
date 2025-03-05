@@ -25,6 +25,7 @@ b_cocaine <- assortativity(g_cocaine)
 b_heroin <- assortativity(g_heroin)
 b_oversize <- assortativity(g_oversize)
 b_montagna <- assortativity(g_montagna)
+b_tfc <- assortativity(g_tfc)
 b_super <- assortativity(g_super)
 
 
@@ -73,57 +74,106 @@ sampler <- function(g, method){
 }
 b_siren.random <- sampler(g_siren, method = "vl")
 b_togo.random <- sampler(g_togo, method = "vl")
-b_cavair.random <- sampler(g_caviar, method = "vl")
+b_caviar.random <- sampler(g_caviar, method = "vl")
 b_cielnet.random <- sampler(g_cielnet, method = "vl")
 b_cocaine.random <- sampler(g_cocaine, method = "vl")
 b_heroin.random <- sampler(g_heroin, method = "vl")
 b_oversize.random <- sampler(g_oversize, method = "vl")
 b_montagna.random <- sampler(g_montagna, method = "vl")
+b_tfc.random <- sampler(g_tfc, method = "vl")
 b_super.random <- sampler(g_super, method = "vl")
 
 
 
 # plot histogram of the assortativity coefficients for the real and random graphs
 plot_assortativity <- function(coeff, random, title){
-  require('ggplot2'); require('scales'); library('ggplot2')
+  require('ggplot2'); require('scales'); require("ggthemes"); library('ggplot2')
   label1 <- mean(random$b); label1 <- round(label1, digits = 2) # label to annotate the mean coefficient of the random networks
   label2 <- round(coeff, digits = 2) # label t0o annotate the coefficient for the criminal networks
   histogram <- ggplot2::ggplot(random, ggplot2::aes( x = b ) ) + 
     # ggplot2::geom_histogram(ggplot2::aes(y = stat(density)), bins = 25, color = "black", fill = "white") +
     ggplot2::geom_histogram(bins = 100, color = "black", fill = "white") +
     # line marker for the mean assortativity coefficient for the random networks
-    ggplot2::geom_vline(ggplot2::aes(xintercept = mean(b)), color = "skyblue2", linewidth = 1, linetype = "dashed") +
-    ggplot2::annotate(geom = "label", x = label1, y = 0.25, label = as.character(label1), size = 5) +
+    ggplot2::geom_vline(ggplot2::aes(xintercept = mean(b)), color = "skyblue2", linewidth = 1, linetype = "solid") +
+    ggplot2::annotate(geom = "label", x = label1, y = 0.50, label = as.character(label1), size = 3) +
     # line marker for the assortativty coefficient for the actual networks
     ggplot2::geom_vline(ggplot2::aes(xintercept = coeff), colour = "firebrick1", linewidth = 1, linetype = "dashed") +
-    ggplot2::annotate(geom = "label", x = label2, y = 0.25, label = as.character(label2), size = 5) +
+    ggplot2::annotate(geom = "label", x = label2, y = 0.50, label = as.character(label2), size = 3) +
     # transform y-axis to percentage scale
     ggplot2::aes(y = after_stat(count)/sum(after_stat(count))) + 
     ggplot2::scale_y_continuous(
       name = "PROBABILITY DENSITY FUNCTION (PDF)", 
       labels = scales::percent_format(accuracy = 1L), # 2L to round to one decimal place, 3L to round to two decimal places, etc.
-      limits = c(0.00, 0.29), 
-      breaks = c(0.00, 0.05, 0.10, 0.15, 0.20, 0.25)
+      limits = c(0.00, 0.50), 
+      breaks = c(0.00, 0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50)
       ) +
     ggplot2::scale_x_continuous(
       name = "DEGREE ASSORTATIVITY COEFFICIENT",
       labels = scales::label_number(accuracy = 0.01),
-      limits = c(-0.52, 0.00),
+      limits = c(-0.61, 0.10),
       breaks = c(-0.50, -0.40, -0.30, -0.20, -0.10, 0.00)
       ) +
     ggplot2::ggtitle(title) +
-    ggthemes::theme_clean()
+    ggthemes::theme_clean() +
+    ggplot2::theme(
+      plot.title = ggplot2::element_text(size = 10, face = "plain"),
+      axis.text.x = ggplot2::element_text(color = "black", size = 8, hjust = 0.5, vjust = 0.5, face = "plain"),
+      axis.text.y = ggplot2::element_text(color = "black", size = 8, hjust = 1.0, vjust = 0.0, face = "plain"),  
+      axis.title.x = ggplot2::element_text(color = "black", size = 8, hjust = 0.5, vjust = 0.0, face = "plain"),
+      axis.title.y = ggplot2::element_text(color = "black", size = 8, hjust = 0.5, vjust = 0.5, face = "plain")
+      )
   return(histogram)
 }
-assortativity_siren <- plot_assortativity(coeff = b_siren, random = b_siren.random, title = "(A) SIREN AUTO THEFT RING")
-assortativity_togo <- plot_assortativity(coeff = b_togo, random = b_togo.random, title = "(B) TOGO AUTO THEFT RING")
-assortativity_caviar <- plot_assortativity(coeff = b_caviar, random = b_cavair.random, title = "(C) CAVAIR DRUG TRAFFICKING ORGANIZATION")
-assortativity_cielnet <- plot_assortativity(coeff = b_cielnet, random = b_cielnet.random, title = "(D) CIELNET DRUG TRAFFICKING ORGANIZATION")
-assortativity_cocaine <- plot_assortativity(coeff = b_cocaine, random = b_cocaine.random, title = "(E) LA COSA NOSTRA COCAINE TRAFFICKING OUTFIT")
-assortativity_heroin <- plot_assortativity(coeff = b_heroin, random = b_heroin.random, title = "(F) NEW YORK CITY HEROIN TRAFFICKERS")
-assortativity_oversize <- plot_assortativity(coeff = b_oversize, random = b_oversize.random, title = "(G) 'NDRANGHETA WIRETAPS - OPERATION OVERSIZE")
-assortativity_montagna <- plot_assortativity(coeff = b_montagna, random = b_montagna.random, title = "(H) COSA NOSTRA WIRETAPS - OPERATION MONTAGNA")
-assortativity_super <- plot_assortativity(coeff = b_super, random = b_super.random, title = "(I) SUPER POPULATION OF CRIMINAL NETWORKS")
+assortativity_siren <- plot_assortativity(
+  coeff = b_siren, 
+  random = b_siren.random, 
+  title = "(A) SIREN AUTO THEFT RING"
+  )
+assortativity_togo <- plot_assortativity(
+  coeff = b_togo, 
+  random = b_togo.random, 
+  title = "(B) TOGO AUTO THEFT RING"
+  )
+assortativity_caviar <- plot_assortativity(
+  coeff = b_caviar, 
+  random = b_caviar.random, 
+  title = "(C) CAVIAR DRUG TRAFFICKING ORGANIZATION"
+  )
+assortativity_cielnet <- plot_assortativity(
+  coeff = b_cielnet, 
+  random = b_cielnet.random, 
+  title = "(D) CIELNET DRUG TRAFFICKING ORGANIZATION"
+  )
+assortativity_cocaine <- plot_assortativity(
+  coeff = b_cocaine, 
+  random = b_cocaine.random, 
+  title = "(E) LA COSA NOSTRA COCAINE TRAFFICKING OUTFIT"
+  )
+assortativity_heroin <- plot_assortativity(
+  coeff = b_heroin, 
+  random = b_heroin.random, 
+  title = "(F) NEW YORK CITY HEROIN TRAFFICKERS"
+  )
+assortativity_oversize <- plot_assortativity(
+  coeff = b_oversize, 
+  random = b_oversize.random, 
+  title = "(G) 'NDRANGHETA WIRETAPS - OPERATION OVERSIZE"
+  )
+assortativity_montagna <- plot_assortativity(
+  coeff = b_montagna, 
+  random = b_montagna.random, 
+  title = "(H) COSA NOSTRA WIRETAPS - OPERATION MONTAGNA"
+  )
+assortativity_tfc <- plot_assortativity(
+  coeff = b_tfc, 
+  random = b_tfc.random, 
+  title = "(I) THE FRENCH CONNECTION - FEDERAL BUREAU OF NARCOTICS"
+  )
+assortativity_super <- plot_assortativity(
+  coeff = b_super, 
+  random = b_super.random, 
+  title = "(J) SUPER POPULATION OF CRIMINAL NETWORKS"
+  )
 
 
 
@@ -137,7 +187,7 @@ output <- function(plot, filename){
     height = 5, 
     device = 'pdf', 
     dpi = 700
-  )
+    )
 }
 output(plot = assortativity_siren, filename = "fig3a.pdf")
 output(plot = assortativity_togo, filename = "fig3b.pdf")
@@ -147,7 +197,8 @@ output(plot = assortativity_cocaine, filename = "fig3e.pdf")
 output(plot = assortativity_heroin, filename = "fig3f.pdf")
 output(plot = assortativity_oversize, filename = "fig3g.pdf")
 output(plot = assortativity_montagna, filename = "fig3h.pdf")
-output(plot = assortativity_super, filename = "fig3i.pdf")
+output(plot = assortativity_tfc, filename = "fig3i.pdf")
+output(plot = assortativity_super, filename = "fig3j.pdf")
 
 
 

@@ -292,7 +292,7 @@ line_super.lambda <- mle_line(mle_super.lambda[[1]])
 
 # plot the log normal curves for each of the criminal networks estimated from the model ------------------------------------------------------------------------------
 ccdf_plot <- function(plot, line, title){
-  require("ggplot2"); require("scales")
+  require("ggplot2"); require("scales"); require("ggthemes")
   # tutorial on how to plot poweRlaw() objects with ggplot2
   # https://rpubs.com/lgadar/power-law
   ccdf <- ggplot2::ggplot(plot) + 
@@ -326,7 +326,7 @@ ccdf_togo <- ccdf_plot(
 ccdf_caviar <- ccdf_plot(
   plot = plot_caviar, 
   line = line_cavair.mu,
-  title = "(C) CAVAIR DRUG TRAFFICKING ORGANIZATION"
+  title = "(C) CAVIAR DRUG TRAFFICKING ORGANIZATION"
   )
 ccdf_cielnet <- ccdf_plot(
   plot = plot_cielnet, 

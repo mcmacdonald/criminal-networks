@@ -11,7 +11,7 @@
 # calculate the degree assortativity coefficient of each of the criminal networks ------------------------------
 clustering <- function(g){
   # required packages
-  require('statnet'); require('igraph'); require('intergraph')
+  require("statnet"); require("igraph"); require("intergraph")
    cc <- igraph::transitivity(
      intergraph::asIgraph(g),
      type = "globalundirected"
@@ -26,6 +26,7 @@ cc_cocaine <- clustering(g_cocaine)
 cc_heroin <- clustering(g_heroin)
 cc_oversize <- clustering(g_oversize)
 cc_montagna <- clustering(g_montagna)
+cc_tfc <- clustering(g_tfc)
 cc_super <- clustering(g_super)
 
 
@@ -70,12 +71,13 @@ sampler <- function(g){
 }
 cc_siren.random <- sampler(g_siren)
 cc_togo.random <- sampler(g_togo)
-cc_cavair.random <- sampler(g_caviar)
+cc_caviar.random <- sampler(g_caviar)
 cc_cielnet.random <- sampler(g_cielnet)
 cc_cocaine.random <- sampler(g_cocaine)
 cc_heroin.random <- sampler(g_heroin)
 cc_oversize.random <- sampler(g_oversize)
 cc_montagna.random <- sampler(g_montagna)
+cc_tfc.random <- sampler(g_tfc)
 cc_super.random <- sampler(g_super)
 
 
@@ -112,15 +114,56 @@ plot_clustering <- function(coeff, random, title){
     ggthemes::theme_clean()
   return(histogram)
 }
-clustering_siren <- plot_clustering(coeff = cc_siren, random = cc_siren.random, title = "(A) SIREN AUTO THEFT RING")
-clustering_togo <- plot_clustering(coeff = cc_togo, random = cc_togo.random, title = "(B) TOGO AUTO THEFT RING")
-clustering_caviar <- plot_clustering(coeff = cc_caviar, random = cc_cavair.random, title = "(C) CAVAIR DRUG TRAFFICKING ORGANIZATION")
-clustering_cielnet <- plot_clustering(coeff = cc_cielnet, random = cc_cielnet.random, title = "(D) CIELNET DRUG TRAFFICKING ORGANIZATION")
-clustering_cocaine <- plot_clustering(coeff = cc_cocaine, random = cc_cocaine.random, title = "(E) LA COSA NOSTRA COCAINE TRAFFICKING OUTFIT")
-clustering_heroin <- plot_clustering(coeff = cc_heroin, random = cc_heroin.random, title = "(F) NEW YORK CITY HEROIN TRAFFICKERS")
-clustering_oversize <- plot_clustering(coeff = cc_oversize, random = cc_oversize.random, title = "(G) 'NDRANGHETA WIRETAPS - OPERATION OVERSIZE")
-clustering_montagna <- plot_clustering(coeff = cc_montagna, random = cc_montagna.random, title = "(H) COSA NOSTRA WIRETAPS - OPERATION MONTAGNA")
-clustering_super <- plot_clustering(coeff = cc_super, random = cc_super.random, title = "(I) SUPER POPULATION OF CRIMINAL NETWORKS")
+clustering_siren <- plot_clustering(
+  coeff = cc_siren,
+  random = cc_siren.random, 
+  title = "(A) SIREN AUTO THEFT RING"
+  )
+clustering_togo <- plot_clustering(
+  coeff = cc_togo, 
+  random = cc_togo.random, 
+  title = "(B) TOGO AUTO THEFT RING"
+  )
+clustering_caviar <- plot_clustering(
+  coeff = cc_caviar, 
+  random = cc_caviar.random, 
+  title = "(C) CAVIAR DRUG TRAFFICKING ORGANIZATION"
+  )
+clustering_cielnet <- plot_clustering(
+  coeff = cc_cielnet, 
+  random = cc_cielnet.random, 
+  title = "(D) CIELNET DRUG TRAFFICKING ORGANIZATION"
+  )
+clustering_cocaine <- plot_clustering(
+  coeff = cc_cocaine, 
+  random = cc_cocaine.random, 
+  title = "(E) LA COSA NOSTRA COCAINE TRAFFICKING OUTFIT"
+  )
+clustering_heroin <- plot_clustering(
+  coeff = cc_heroin, 
+  random = cc_heroin.random, 
+  title = "(F) NEW YORK CITY HEROIN TRAFFICKERS"
+  )
+clustering_oversize <- plot_clustering(
+  coeff = cc_oversize, 
+  random = cc_oversize.random, 
+  title = "(G) 'NDRANGHETA WIRETAPS - OPERATION OVERSIZE"
+  )
+clustering_montagna <- plot_clustering(
+  coeff = cc_montagna, 
+  random = cc_montagna.random, 
+  title = "(H) COSA NOSTRA WIRETAPS - OPERATION MONTAGNA"
+  )
+clustering_tfc <- plot_clustering(
+  coeff = cc_tfc, 
+  random = cc_tfc.random, 
+  title = "(I) THE FRENCH CONNECTION - FEDERAL BUREAU OF NARCOTICS"
+  )
+clustering_super <- plot_clustering(
+  coeff = cc_super, 
+  random = cc_super.random, 
+  title = "(J) SUPER POPULATION OF CRIMINAL NETWORKS"
+  )
 
 
 
@@ -144,7 +187,8 @@ output(plot = clustering_cocaine, filename = "fig4e.pdf")
 output(plot = clustering_heroin, filename = "fig4f.pdf")
 output(plot = clustering_oversize, filename = "fig4g.pdf")
 output(plot = clustering_montagna, filename = "fig4h.pdf")
-output(plot = clustering_super, filename = "fig4i.pdf")
+output(plot = clustering_tfc, file = "fig4i.pdf")
+output(plot = clustering_super, filename = "fig4j.pdf")
 
 
 

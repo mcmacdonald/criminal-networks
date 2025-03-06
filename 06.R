@@ -44,7 +44,7 @@ GOF <- function(bayes){
     n.esp  = k,
     directed = F,    # symmetric graph
     sample.size = n # random graph realizations
-  )
+    )
   return(fit)
 }
 
@@ -168,15 +168,30 @@ summary(bayes_08.montagna)
 gof_08.montagna <- GOF(bayes_08.montagna)
 
 
+# estimate the model -----------------------------------------------------------
+bayes_09.tfc <- bayes(
+  y = g_tfc,
+  x = g_tfc ~ edges + 
+    gwdegree(decay = 2.0, fixed = TRUE) +
+    gwdsp(decay = 2.0, fixed = TRUE) +
+    gwesp(decay = 2.0, fixed = TRUE) +
+    degcor
+    )
+summary(bayes_09.tfc)
+
+# goodness-of-fit
+gof_09.tfc <- GOF(bayes_09.tfc)
+
+
 
 # estimate the model -----------------------------------------------------------
 g_super <- intergraph::asNetwork(igraph::simplify(intergraph::asIgraph(g_super)))
 bayes_09.super <- bayes(
   y = g_super,
   x = g_super ~ edges + 
-    gwdegree(decay = 0.1, fixed = TRUE) +
-    gwdsp(decay = 0.1, fixed = TRUE) +
-    gwesp(decay = 1.0, fixed = TRUE) +
+    gwdegree(decay = 2.0, fixed = TRUE) +
+    gwdsp(decay = 2.0, fixed = TRUE) +
+    gwesp(decay = 2.0, fixed = TRUE) +
     degcor
     )
 summary(bayes_09.super)
@@ -205,58 +220,66 @@ bayes_10.super <- bayes(
   ) +
   # togo auto theft ring
   S(~edges + 
-      gwdegree(decay = 0.5, fixed = T) + 
-      gwdsp(decay = 3.0, fixed = T)    + 
-      gwesp(decay = 3.0, fixed = T)    ,
+      gwdegree(decay = 0.5, fixed = TRUE) + 
+      gwdsp(decay = 3.0, fixed = TRUE)    + 
+      gwesp(decay = 3.0, fixed = TRUE)    ,
     ~(group == c("togo")
     )
   # caviar drug trafficking organization
   ) +
   S(~edges + 
-      gwdegree(decay = 2.0, fixed = T) + 
-      gwdsp(decay = 1.0, fixed = T)    + 
-      gwesp(decay = 2.0, fixed = T)    ,
+      gwdegree(decay = 2.0, fixed = TRUE) + 
+      gwdsp(decay = 1.0, fixed = TRUE)    + 
+      gwesp(decay = 2.0, fixed = TRUE)    ,
     ~(group == c("caviar")
     )
   ) +
   # cielnet drug trafficking organization
   S(~edges + 
-      gwdegree(decay = 1.0, fixed = T) + 
-      gwdsp(decay = 0.2, fixed = T)    + 
-      gwesp(decay = 0.2, fixed = T)    ,
+      gwdegree(decay = 1.0, fixed = TRUE) + 
+      gwdsp(decay = 0.2, fixed = TRUE)    + 
+      gwesp(decay = 0.2, fixed = TRUE)    ,
     ~(group == c("cielnet")
     )
   ) +
   # La Cosa Nostra cocaine trafficking outfit
   S(~edges + 
-      gwdegree(decay = 1.5, fixed = T) + 
-      gwdsp(decay = 0.5, fixed = T)    + 
-      gwesp(decay = 0.5, fixed = T)    ,
+      gwdegree(decay = 1.5, fixed = TRUE) + 
+      gwdsp(decay = 0.5, fixed = TRUE)    + 
+      gwesp(decay = 0.5, fixed = TRUE)    ,
     ~(group == c("cocaine")
      )
     ) +
   # New York City heroin traffickers
   S(~edges + 
-      gwdegree(decay = 2.5, fixed = T) + 
-      gwdsp(decay = 1.5, fixed = T)    + 
-      gwesp(decay = 0.5, fixed = T)    ,
+      gwdegree(decay = 2.5, fixed = TRUE) + 
+      gwdsp(decay = 1.5, fixed = TRUE)    + 
+      gwesp(decay = 0.5, fixed = TRUE)    ,
     ~(group == c("heroin")
       )
     ) +
   # 'Ndrangheta wiretap records -- operation oversize
   S(~edges + 
-      gwdegree(decay = 1.5, fixed = T) + 
-      gwdsp(decay = 1.5, fixed = T)    + 
-      gwesp(decay = 0.5, fixed = T)    ,
+      gwdegree(decay = 1.5, fixed = TRUE) + 
+      gwdsp(decay = 1.5, fixed = TRUE)    + 
+      gwesp(decay = 0.5, fixed = TRUE)    ,
     ~(group == c("oversize")
       )
     ) +
   # Cosa Nostra wiretap records -- operation montagna 
   S(~edges + 
-      gwdegree(decay = 2.0, fixed = T) + 
-      gwdsp(decay = 2.0, fixed = T)    + 
-      gwesp(decay = 2.0, fixed = T)    ,
+      gwdegree(decay = 2.0, fixed = TRUE) + 
+      gwdsp(decay = 2.0, fixed = TRUE)    + 
+      gwesp(decay = 2.0, fixed = TRUE)    ,
     ~(group == c("montagna")
+    )
+  ) +
+  # the french connection - federal bureau of narcotics
+  S(~edges + 
+      gwdegree(decay = 2.0, fixed = TRUE) + 
+      gwdsp(decay = 2.0, fixed = TRUE)    + 
+      gwesp(decay = 2.0, fixed = TRUE)    ,
+    ~(group == c("tfc")
     )
   )
 )
@@ -267,7 +290,71 @@ gof_10.super <- GOF(bayes_10.super)
 
 
 
+# construct results table from the posterior estimates
+thetas <- bayes_10.super$Theta # posterior estimates
+colnames(thetas) <- c( # parameter labels
+  "edges",
+  "gwdegree 0.1",
+  "gwdsp 0.1",
+  "gwesp 1.0",
+  "degcor",
+  "edges - siren",
+  "gwdegree 3.0 - siren",
+  "gwdsp 3.0 - siren",
+  "gwesp 3.0 - siren",
+  "edges - togo",
+  "gwdegree 0.5 - togo",
+  "gwdsp 3.0 - togo",
+  "gwesp 3.0 - togo",
+  "edges - caviar",
+  "gwdegree 2.0 - caviar",
+  "gwdsp 1.0 - caviar",
+  "gwesp 2.0 - caviar",
+  "edges - cielnet",
+  "gwdegree 1.0 - cielnet",
+  "gwdsp 0.2 - cielnet",
+  "gwesp 0.2 - cielnet",
+  "edges - cocaine",
+  "gwdegree 1.5 - cocaine",
+  "gwdsp 0.5 - cocaine",
+  "gwesp 0.5 - cocaine",
+  "edges - heroin",
+  "gwdegree 2.5 - heroin",
+  "gwdsp 1.5 - heroin",
+  "gwesp 0.5 - heroin",
+  "edges - oversize",
+  "gwdegree 1.5 - oversize",
+  "gwdsp 1.5 - oversize",
+  "gwesp 0.5 - oversize",
+  "edges - montagna",
+  "gwdegree 2.0 - montagna",
+  "gwdsp 2.0 - montagna",
+  "gwesp 2.0 - montagna",
+  "edges - tfc",
+  "gwdegree 2.0 - tfc",
+  "gwdsp 2.0 - tfc",
+  "gwesp 2.0 - tfc"
+  )
 
+# compute means and standard deviations of the postieor estimates
+
+# don't run
+# mean(thetas[, 1]) # estimate for the edges parameter
+# sd(thetas[, 1])
+
+# mean
+thetas_mu <- colMeans(thetas)
+
+# standard deviation
+thetas_sd <- matrixStats::colSds(thetas) # install.packages("matrixStats")
+
+# 
+thetas_table <- cbind(thetas_mu, thetas_sd)
+thetas_table <- as.data.frame(thetas_table)
+thetas_names <- rownames(thetas_table)
+thetas_table <- cbind(thetas_names, thetas_table)
+rownames(thetas_table) <- c()
+colnames(thetas_table) <- c("parameter", "mean", "SD")
 
 # close .r script
 
@@ -354,15 +441,24 @@ ERGM <- function(g, x){
   return(b) # return ergm object
 }
 # pass model specifciations through function to estimate models 
-model_01.siren <- ERGM(
-  g = g_siren,
-  x = g_siren ~ 
+model_09.tfc <- ERGM(
+  g = g_tfc,
+  x = g_tfc ~ 
     edges + 
-    gwdegree(decay = 3, fixed = TRUE) +
-    gwdsp(decay = 1, fixed = TRUE) +
-    gwesp(decay = 1, fixed = TRUE) +
+    gwdegree(decay = 2.0, fixed = TRUE) +
+    gwdsp(decay = 2.0, fixed = TRUE) +
+    gwesp(decay = 2.0, fixed = TRUE) +
     degcor
-)
+    )
+
+# spectral goodness-of-fit measure to critique the model fit to the observed data
+# installation guidelines
+# https://github.com/blubin/SpectralGOF/blob/master/instructions/spectralGOFwalkthrough.pdf
+# install.packages("~/Desktop/spectralGOF", repos = NULL, type = "source")
+spectralGOF::SGOF(model_09.tfc, nsim = 100)
+
+
+
 model_02.togo <- ERGM(
   g = g_siren,
   x = g_siren ~ 

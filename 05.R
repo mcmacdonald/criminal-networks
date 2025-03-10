@@ -49,11 +49,12 @@ simulator <- function(g){
   d <- statip::mfv(d) # mode
   
   # latent space model, controlling for the squared euclidean distance, where the dimension set to the modal shortest path
-  model <- latentnet::ergmm(g ~ euclidean2(d = 2), seed = seed)
+  # https://cran.r-project.org/web/packages/latentnet/latentnet.pdf
+  model <- latentnet::ergmm(g ~ euclidean2(d = d), seed = seed)
   
   # simulate large number of networks from the latent space model
   simulations <- simulate(model, nsim = 10000, seed = seed)
-  simulations <- simulations$networks   # retain the simulated networks
+  simulations <- simulations$networks # retain the simulated networks
   
   # number of simulations
   samples <- length(simulations)
@@ -89,7 +90,6 @@ cc_heroin.lsm <- simulator(g_heroin)
 cc_oversize.lsm <- simulator(g_oversize)
 cc_montagna.lsm <- simulator(g_montagna)
 cc_tfc.lsm <- simulator(g_tfc)
-# cc_super.lsm <- simulator(g_super)
 
 
 
@@ -97,25 +97,55 @@ cc_tfc.lsm <- simulator(g_tfc)
 
 # plot histogram of the clustering coefficients for the real and simulated graphs
 plot_clustering <- function(coeff, lsm, title){
+  
+  # required packages
   require('ggplot2'); require('scales'); library('ggplot2')
-  label1 <- mean(lsm$cc); label1 <- round(label1, digits = 2) # label to annotate the mean coefficient of the simulated networks
-  label2 <- round(coeff, digits = 2) # label to annotate the coefficient for the criminal networks
+  
+  # mean and standard deviation of the latent space models
+  mu <- mean(lsm$cc); sd <- sd(lsm$cc)
+  
+  # compute z-score
+  z <- (coeff - mu)/sd
+  
+  # two-tailed significance test
+  p <- 2 * (1 - stats::pnorm(abs(z)))
+  
+  # flag statistical significance
+  sig <- if (p < 0.001) {"***"} 
+  else{
+    if (p < 0.1) {"**"}
+    else{
+      if (p < 0.5){"*"}
+      else{
+        NULL
+      }
+    }
+  }
+  
+  # label to annotate the mean coefficient of the simulated networks
+  label1 <- mean(lsm$cc); label1 <- round(label1, digits = 2)
+  
+  # label to annotate the coefficient for the criminal networks
+  label2 <- round(coeff, digits = 2)
+  
+  # distribution of correlation coefficients
   histogram <- ggplot2::ggplot(lsm, ggplot2::aes( x = cc ) ) + 
     # ggplot2::geom_histogram(ggplot2::aes(y = stat(density)), bins = 25, color = "black", fill = "white") +
     ggplot2::geom_histogram(bins = 100, color = "black", fill = "white") +
-    # line marker for the mean clustering coefficient for the random networks
+    # line markers for the clustering coefficients
     ggplot2::geom_vline(ggplot2::aes(xintercept = mean(cc)), color = "skyblue2", linewidth = 1, linetype = "dashed") +
-    ggplot2::annotate(geom = "label", x = label1, y = 0.25, label = as.character(label1), size = 5) +
-    # line marker for the clustering coefficient for the actual networks
     ggplot2::geom_vline(ggplot2::aes(xintercept = coeff), colour = "firebrick1", linewidth = 1, linetype = "dashed") +
-    ggplot2::annotate(geom = "label", x = label2, y = 0.25, label = as.character(label2), size = 5) +
+    # annotation for the mean clustering coefficient for the random networks
+    ggplot2::annotate(geom = "label", x = label1 - 0.02, y = 0.20, label = sprintf('%0.2f', label1), size = 3) +
+    # annotation for the clustering coefficient for the actual networks
+    ggplot2::annotate(geom = "label", x = label2 + 0.02, y = 0.18, label = paste0(sprintf('%0.2f', label2), sig), size = 3) +
     # transform y-axis to percentage scale
     ggplot2::aes(y = after_stat(count)/sum(after_stat(count))) + 
     ggplot2::scale_y_continuous(
       name = "PROBABILITY DENSITY FUNCTION (PDF)", 
       labels = scales::percent_format(accuracy = 1L), # 2L to round to one decimal place, 3L to round to two decimal places, etc.
-      limits = c(0.00, 0.19), 
-      breaks = c(0.00, 0.05, 0.10, 0.15)
+      limits = c(0.00, 0.20), 
+      breaks = c(0.00, 0.05, 0.10, 0.15, 0.20)
       ) +
     ggplot2::scale_x_continuous(
       name = "CLUSTERING COEFFICIENT",
@@ -132,6 +162,7 @@ plot_clustering <- function(coeff, lsm, title){
       axis.title.x = ggplot2::element_text(color = "black", size = 8, hjust = 0.5, vjust = 0.0, face = "plain"),
       axis.title.y = ggplot2::element_text(color = "black", size = 8, hjust = 0.5, vjust = 0.5, face = "plain")
       )
+  plot(histogram)
   return(histogram)
 }
 clustering_siren <- plot_clustering(
@@ -187,7 +218,7 @@ output <- function(plot, filename){
   ggplot2::ggsave(
     filename,
     plot,
-    path = "~/Desktop", 
+    path = "~/Desktop/super/", 
     width = 5, 
     height = 5, 
     device = 'pdf', 

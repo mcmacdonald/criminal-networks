@@ -52,6 +52,16 @@ simulator <- function(g){
   # https://cran.r-project.org/web/packages/latentnet/latentnet.pdf
   model <- latentnet::ergmm(g ~ euclidean2(d = d), seed = seed)
   
+  # goodness-of-fit of the geodesic distances or path lengths
+  gof <- gof(
+    model,
+    nsim = 10000, 
+    GOF = ~distance, 
+    verbose = FALSE)
+  
+  # print goodness-of-fit
+  plot(gof); print(gof)
+  
   # simulate large number of networks from the latent space model
   simulations <- simulate(model, nsim = 10000, seed = seed)
   simulations <- simulations$networks # retain the simulated networks
@@ -257,40 +267,42 @@ sampler <- function(g){
   n <- length(igraph::V(intergraph::asIgraph(g))) # 'n' nodes
   m <- length(igraph::E(intergraph::asIgraph(g))) # 'm' edges
   
+  # don't run
   # calculate the modal number of neighbors from the degree distribution
   # d <- igraph::degree(intergraph::asIgraph(g), mode = "total", loops = FALSE)
   # d <- mode(d)
   
+  # don't run
   # calculate the number of neighbors from the degree distribution
-  d <- igraph::degree(intergraph::asIgraph(g), mode = "total", loops = FALSE)
+  # d <- igraph::degree(intergraph::asIgraph(g), mode = "total", loops = FALSE)
   
   # function to generate random graphs from the Erdos-Renyi model
   samples <- 10000 # number of random graphs to generate
   results <- c() # results vector
   for(i in 1:samples){
     
-    # don't run
     # generate random graphs
-    # g_random = igraph::sample_gnm(
-    # n = n,
-    # m = m, # m edges taken from the uniform random distribution from the set of all possible edges 
-    # directed = FALSE, 
-    # loops = FALSE
-    # )
+    g_random = igraph::sample_gnm(
+      n = n,
+      m = m, # m edges taken from the uniform random distribution from the set of all possible edges 
+      directed = FALSE, 
+      loops = FALSE
+      )
     
     # randomly select the number of neighbors from the degree distribution
-    nei <- sample(d, 1)
+    # nei <- sample(d, 1)
     
     # randomly select the probability to rewire edges
-    p <- runif(1, 0, 1)
+    # p <- runif(1, 0, 1)
     
+    # don't run
     # small world sampler 
-    g_random <- igraph::sample_smallworld(
-      dim = 1, # = 1 for a lattice
-      size = n,
-      nei = nei,
-      p = p
-      )
+    # g_random <- igraph::sample_smallworld(
+      # dim = 1, # = 1 for a lattice
+      # size = n,
+      # nei = nei,
+      # p = p
+      # )
     
     # calculate clustering coefficient for the random graphs
     cc <- igraph::transitivity(
@@ -316,3 +328,50 @@ cc_oversize.random <- sampler(g_oversize)
 cc_montagna.random <- sampler(g_montagna)
 cc_tfc.random <- sampler(g_tfc)
 cc_super.random <- sampler(g_super)
+
+
+
+# compare the clustering coefficients from the laternt space model and erdos-renyi random graph models
+compare_distributions <- function(x, y){
+  
+  # t-test
+  result <- stats::t.test(x, y)
+  
+  # test statistic
+  t <- result$statistic
+  message("t statistic:")
+  cat(t); cat("\n"); cat("\n")
+  
+  # p-value
+  p <- result$p.value
+  p <- round(p, digits = 4)
+  message("p-value:")
+  cat(p); cat("\n"); cat("\n")
+  
+  # 
+  x <- result$estimate[1]
+  x <- round(x, digits = 2)
+  message("mean clustering coefficient of Erdos-Renyi random graph model:")
+  cat(x); cat("\n"); cat("\n")
+  
+  # 
+  y <- result$estimate[2]
+  y <- round(y, digits = 2)
+  message("mean clustering coefficient of the latent space model:")
+  cat(y); cat("\n"); cat("\n")
+}
+compare_distributions(x = cc_siren.random, cc_siren.lsm)
+compare_distributions(x = cc_togo.random, cc_togo.lsm)
+compare_distributions(x = cc_cavair.random, cc_caviar.lsm)
+compare_distributions(x = cc_cielnet.random, cc_cielnet.lsm)
+compare_distributions(x = cc_cocaine.random, cc_cocaine.lsm)
+compare_distributions(x = cc_heroin.random, cc_heroin.lsm)
+compare_distributions(x = cc_oversize.random, cc_oversize.lsm)
+compare_distributions(x = cc_montagna.random, cc_montagna.lsm)
+compare_distributions(x = cc_tfc.random, cc_tfc.lsm)
+
+
+
+
+
+

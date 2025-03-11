@@ -50,14 +50,23 @@ simulator <- function(g){
   
   # latent space model, controlling for the squared euclidean distance, where the dimension set to the modal shortest path
   # https://cran.r-project.org/web/packages/latentnet/latentnet.pdf
-  model <- latentnet::ergmm(g ~ euclidean2(d = d), seed = seed)
+  model <- latentnet::ergmm(
+    g ~ intercept + euclidean2(d = d),
+    family = "Bernoulli",
+    control = ergmm.control(
+      burnin = 100000,
+      interval = 100
+      ),
+    seed = seed
+    )
   
   # goodness-of-fit of the geodesic distances or path lengths
   gof <- gof(
     model,
     nsim = 10000, 
     GOF = ~distance, 
-    verbose = FALSE)
+    verbose = FALSE
+    )
   
   # print goodness-of-fit
   plot(gof); print(gof)

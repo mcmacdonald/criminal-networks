@@ -34,7 +34,7 @@ siren    = import(file = "~/criminal-networks/data/morselli_siren.csv") # siren 
 togo     = import(file = "~/criminal-networks/data/morselli_togo.csv") # togo auto theft - Morselli
 oversize = import(file = "~/criminal-networks/data/berlusconietal_oversize.csv") # 'Ndrangheta -- wiretap records for those named in court records
 montagna = import(file = "~/criminal-networks/data/luciaetal_montagna.csv") # 'Cosa Nostra -- wiretap records for those arrested and indicted on criminal charges
-tfc      = import(file = "~/criminal-networks/data/macdonald_tfc.csv") # The French Connection international heroin trafficking organization
+
 
 
 # label rows and columns with unique names
@@ -51,7 +51,7 @@ siren    <- nodes(siren, prefix = "siren")
 togo     <- nodes(togo, prefix = "togo")
 oversize <- nodes(oversize, prefix = "oversize")
 montagna <- nodes(montagna, prefix = "montagna")
-# tfc     <- nodes(tfc, prefix = "tfc) # keep names 
+
 
 
 # symmetrize the relational data -----------------------------------------------
@@ -89,37 +89,18 @@ cocaine  = symmetrize(cocaine)
 heroin   = symmetrize(heroin)
 oversize = symmetrize(oversize)
 montagna = symmetrize(montagna)
-tfc      = symmetrize(tfc)
-
-
-
-# function to transform adjacency matrix to edgelist ---------------------------
-to_edgelist <- function(adj){
-  g <- igraph::graph_from_adjacency_matrix(adj)
-  e <- igraph::as_data_frame(g)
-  e = dplyr::rename( # rename columns
-    e, 
-    i = from, 
-    j = to
-    )
-  return(e)
-}
-siren <- to_edgelist(siren)
-togo <- to_edgelist(togo)
-caviar <- to_edgelist(caviar)
-cielnet <- to_edgelist(cielnet)
-cocaine <- to_edgelist(cocaine)
-heroin <- to_edgelist(heroin)
-oversize <- to_edgelist(oversize)
-montagna <- to_edgelist(montagna)
-tfc <- to_edgelist(tfc)
 
 
 
 # function to delete isolates --------------------------------------------------
-delete_isolates <- function(el){
+delete_isolates <- function(adj){
   require('igraph')
-  g <- igraph::graph_from_data_frame(el, directed = FALSE)
+  g <- igraph::graph_from_adjacency_matrix(
+    adj, 
+    mode = "undirected", 
+    weighted = NULL, 
+    diag = FALSE
+    )
   g <- igraph::delete_vertices( # delete isolates
     g, 
     which(igraph::degree(g, v = igraph::V(g), mode = "total", loops = F)==0) # degree = 0
@@ -147,12 +128,12 @@ cocaine  = delete_isolates(cocaine)
 heroin   = delete_isolates(heroin)
 oversize = delete_isolates(oversize)
 montagna = delete_isolates(montagna)
-tfc = delete_isolates(tfc)
 
 
 
 # function to generate nodelists -----------------------------------------------
 nl <- function(el, net){
+  el$weight <- NULL
   nl <- stack(el)
   nl$ind <- NULL
   nl <- dplyr::rename(nl, name = values)
@@ -168,7 +149,6 @@ v_cocaine  <- nl(cocaine, net = "cocaine")
 v_heroin   <- nl(heroin, net = "heroin")
 v_oversize <- nl(oversize, net = "oversize")
 v_montagna <- nl(montagna, net = "montagna")
-v_tfc      <- nl(tfc, net = "tfc")
 
 
 
@@ -187,7 +167,6 @@ g_cocaine  <- graph(cocaine, v = v_cocaine)
 g_heroin   <- graph(heroin, v = v_heroin)
 g_oversize <- graph(oversize, v = v_oversize)
 g_montagna <- graph(montagna, v = v_montagna)
-g_tfc <- graph(tfc, v = v_tfc)
 
 
 
@@ -200,8 +179,7 @@ g_super <- rbind(
   cocaine,
   heroin,
   oversize,
-  montagna,
-  tfc
+  montagna
   )
 
 # join into attribute data for super network
@@ -213,8 +191,7 @@ v_super <- rbind(
   v_cocaine,
   v_heroin,
   v_oversize,
-  v_montagna,
-  v_tfc
+  v_montagna
   )
 
 # construct super network with names and 'group membership'
@@ -234,9 +211,8 @@ rm( # drop attribute data for individual networks
   v_cocaine,
   v_heroin,
   v_oversize,
-  v_montagna,
-  v_tfc
-)
+  v_montagna
+  )
 rm( # drop edgelists for individual networks
   siren,
   togo,
@@ -245,8 +221,7 @@ rm( # drop edgelists for individual networks
   cocaine,
   heroin,
   oversize,
-  montagna,
-  tfc
+  montagna
   )
 
 

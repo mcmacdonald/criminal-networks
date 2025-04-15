@@ -9,10 +9,10 @@
 
 
 # plot complimentary cumulative degree distribution ----------------------------------
-cdf_degree <- function(g){
+cdf_degree <- function(g, cmode){
   par(mfrow=c(1,1)) # plot dimensions
   # normalized degree centrality
-  d <- sna::degree(g, gmode = "graph") # degree centrality for each node
+  d <- sna::degree(g, gmode = "digraph", cmode = cmode) # degree centrality for each node
   d <- d/max(d); d <- round(x = d, digits = 2) # scores to range 0-1 and round to two decimal places
   d <- d[order(d, decreasing = TRUE)] # sort from largest to smallest
   # calculate complimentary cumulative distribution function (ccdf)
@@ -24,17 +24,29 @@ cdf_degree <- function(g){
   # plot the ccdf
   plot(log(data$ndegree), log(data$ccdf))
 }
-cdf_degree(g_siren)
-cdf_degree(g_togo)
-cdf_degree(g_caviar)
-cdf_degree(g_cielnet)
-cdf_degree(g_cocaine)
-cdf_degree(g_heroin)
-cdf_degree(g_oversize)
-cdf_degree(g_montagna)
-cdf_degree(g_tfc)
-cdf_degree(g_super)
+# sender 
+cdf_degree(g_siren, cmode = "outdegree")
+cdf_degree(g_togo, cmode = "outdegree")
+cdf_degree(g_caviar, cmode = "outdegree")
+cdf_degree(g_cielnet, cmode = "outdegree")
+cdf_degree(g_cocaine, cmode = "outdegree")
+cdf_degree(g_heroin, cmode = "outdegree")
+cdf_degree(g_oversize, cmode = "outdegree")
+cdf_degree(g_montagna, cmode = "outdegree")
+cdf_degree(g_tfc, cmode = "outdegree")
+cdf_degree(g_super, cmode = "outdegree")
 
+# receiver
+cdf_degree(g_siren, cmode = "indegree")
+cdf_degree(g_togo, cmode = "indegree")
+cdf_degree(g_caviar, cmode = "indegree")
+cdf_degree(g_cielnet, cmode = "indegree")
+cdf_degree(g_cocaine, cmode = "indegree")
+cdf_degree(g_heroin, cmode = "indegree")
+cdf_degree(g_oversize, cmode = "indegree")
+cdf_degree(g_montagna, cmode = "indegree")
+cdf_degree(g_tfc, cmode = "indegree")
+cdf_degree(g_super, cmode = "indegree")
 
 
 # first, estimate the shape of the degree distribution and test it against different statistical distributions
@@ -46,7 +58,7 @@ cdf_degree(g_super)
 
 
 # Vuong's likelihood ratio test for goodness-of-fit for the log normal distribution ----------------------------------------------------------------
-vuong = function(g, model){
+vuong = function(g, cmode, model){
   
   # required packages
   require("poweRlaw"); require("sna")
@@ -64,7 +76,8 @@ vuong = function(g, model){
   cat("\n") # space
   
   # degree distribution for the criminal networks
-  d <- sna::degree(g, gmode = "graph", cmode = "freeman", rescale = FALSE)
+  d <- sna::degree(g, gmode = "digraph", cmode = cmode, rescale = FALSE)
+  d <- d[d!=0] # drop nodes that do not have sender or receiver ties
   d <- d[order(d, decreasing = TRUE)]
   
   # fit log-normal distribution
@@ -116,16 +129,16 @@ vuong = function(g, model){
   }
 }
 # compare log normal distribution to the power law distribution
-vuong(g_siren, model = poweRlaw::displ)
-vuong(g_togo, model = poweRlaw::displ)
-vuong(g_caviar, model = poweRlaw::displ)
-vuong(g_cielnet, model = poweRlaw::displ)
-vuong(g_cocaine, model = poweRlaw::displ)
-vuong(g_heroin, model = poweRlaw::displ)
-vuong(g_oversize, model = poweRlaw::displ)
-vuong(g_montagna, model = poweRlaw::displ)
-vuong(g_tfc, model = poweRlaw::displ)
-vuong(g_super, model = poweRlaw::displ)
+vuong(g_siren, cmode = "indegree", model = poweRlaw::displ)
+vuong(g_togo, cmode = "indegree", model = poweRlaw::displ)
+vuong(g_caviar, cmode = "indegree", model = poweRlaw::displ)
+vuong(g_cielnet, cmode = "indegree", model = poweRlaw::displ)
+vuong(g_cocaine, cmode = "indegree", model = poweRlaw::displ)
+vuong(g_heroin, cmode = "indegree", model = poweRlaw::displ)
+vuong(g_oversize, cmode = "indegree", model = poweRlaw::displ)
+vuong(g_montagna, cmode = "indegree", model = poweRlaw::displ)
+vuong(g_tfc, cmode = "indegree", model = poweRlaw::displ)
+vuong(g_super, cmode = "indegree", model = poweRlaw::displ)
 
 # compare log normal distribution to the exponential distribution
 vuong(g_siren, model = poweRlaw::disexp)

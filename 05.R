@@ -8,7 +8,7 @@
 
 
 
-# calculate the degree assortativity coefficient of each of the criminal networks ------------------------------
+# calculate the clustering coefficient of each of the criminal networks ------------------------------
 clustering <- function(g){
   # required packages
   require("statnet"); require("igraph"); require("intergraph")

@@ -1,16 +1,12 @@
-#  -----------------------------------------------------------------------------------
+#  ---------------------------------------------------------------------------------------------------
 
-# file 01: import and manipulate relational data for the 'oversize' network of mafias
+# file 02: import and manipulate data used to estimate the hierarchical exponential random graph model
 
-# note: you must run this file before you run file named '02.R'
-
-# link to download the original data:
-# Berlusconi et al.: https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0154244
-# most suspects under investigation were members or associates of the ‘Ndrangheta of the region of Calabria
+# note: you must run this file before you run file named '03.R'
 
 # last updated: 27/02/2025
 
-# ------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------
 
 
 
@@ -30,8 +26,16 @@ import = function(file){
   data = data[-1, -1] # drop first row, column (i.e, vertex labels)
   return(data)
 }
-oversizeWR = import(file = "~/Desktop/oversizeWR.csv") # wiretap records
-overwizeJU = import(file = "~/Desktop/oversizeJU.csv") # court records
+caviar   = import(file = "~/criminal-networks/data/morselli_caviar.csv") # caviar drug trafficking network - Morselli
+cielnet  = import(file = "~/criminal-networks/data/morselli_cielnet.csv") # CielNet (Montreal drug runner) network - Morselli
+cocaine  = import(file = "~/criminal-networks/data/natajaran_cocaine.csv") # NY cocaine trafficking network - Natarajan
+heroin   = import(file = "~/criminal-networks/data/natajaran_heroin.csv") # NY heroin trafficking network - Natarajan
+siren    = import(file = "~/criminal-networks/data/morselli_siren.csv") # siren auto theft - Morselli
+togo     = import(file = "~/criminal-networks/data/morselli_togo.csv") # togo auto theft - Morselli
+oversize = import(file = "~/criminal-networks/data/berlusconietal_oversize.csv") # 'Ndrangheta -- wiretap records for those named in court records
+montagna = import(file = "~/criminal-networks/data/luciaetal_montagna.csv") # 'Cosa Nostra -- wiretap records for those arrested and indicted on criminal charges
+
+
 
 # label rows and columns with unique names
 nodes <- function(x, prefix){
@@ -39,12 +43,18 @@ nodes <- function(x, prefix){
   colnames(x) <- c(1:nrow(x)); colnames(x) <- paste0(prefix, colnames(x)) # prefix = "N"
   return(x)
 }
-oversizeWR <- nodes(oversizeWR, prefix = "oversize")
-oversizeJU <- nodes(oversizeJU, prefix = "oversize")
+caviar   <- nodes(caviar, prefix = "caviar")
+cielnet  <- nodes(cielnet, prefix = "cielnet")
+cocaine  <- nodes(cocaine, prefix = "cocaine")
+heroin   <- nodes(heroin, prefix = "heroin")
+siren    <- nodes(siren, prefix = "siren")
+togo     <- nodes(togo, prefix = "togo")
+oversize <- nodes(oversize, prefix = "oversize")
+montagna <- nodes(montagna, prefix = "montagna")
 
 
 
-# symmetrize the relational data ------------------------------------------------
+# symmetrize the relational data -----------------------------------------------
 symmetrize = function(adj){
   
   # required packages
@@ -55,7 +65,7 @@ symmetrize = function(adj){
   adj = as.matrix(adj) # coerce to matrix
   adj = igraph::graph_from_adjacency_matrix( # adjacency matrix
     adjmatrix = adj,
-    mode = "undirected", 
+    mode = "max", 
     weighted = NULL, 
     diag = FALSE
     )
@@ -71,17 +81,32 @@ symmetrize = function(adj){
     )
   return(adj)
 }
+siren    = symmetrize(siren)
+togo     = symmetrize(togo)
+caviar   = symmetrize(caviar)
+cielnet  = symmetrize(cielnet)
+cocaine  = symmetrize(cocaine)
+heroin   = symmetrize(heroin)
+oversize = symmetrize(oversize)
+montagna = symmetrize(montagna)
 
-# symmetrize
-oversizeWR = symmetrize(oversizeWR)
-oversizeJU = symmetrize(oversizeJU)
 
 
-
-# function to transform adjacency matrix to edgelist ---------------------------
-to_edgelist <- function(adj){
+# function to delete isolates --------------------------------------------------
+delete_isolates <- function(adj){
+  require('igraph')
+  g <- igraph::graph_from_adjacency_matrix(
+    adj, 
+    mode = "undirected", 
+    weighted = NULL, 
+    diag = FALSE
+    )
+  g <- igraph::delete_vertices( # delete isolates
+    g, 
+    which(igraph::degree(g, v = igraph::V(g), mode = "total", loops = F)==0) # degree = 0
+    )
   el = igraph::as_edgelist( # into edgelist
-    graph = adj, 
+    graph = g, 
     names = TRUE
     )
   el = as.data.frame( # back to dataframe
@@ -95,65 +120,114 @@ to_edgelist <- function(adj){
     )
   return(el)
 }
-oversizeWR <- to_edgelist(oversizeWR)
-oversizeJU <- to_edgelist(oversizeJU)
+siren    = delete_isolates(siren)
+togo     = delete_isolates(togo)
+caviar   = delete_isolates(caviar)
+cielnet  = delete_isolates(cielnet)
+cocaine  = delete_isolates(cocaine)
+heroin   = delete_isolates(heroin)
+oversize = delete_isolates(oversize)
+montagna = delete_isolates(montagna)
 
 
 
-# delete nodes from oversize wiretap records not named in court records
+# function to generate nodelists -----------------------------------------------
+nl <- function(el, net){
+  el$weight <- NULL
+  nl <- stack(el)
+  nl$ind <- NULL
+  nl <- dplyr::rename(nl, name = values)
+  nl <- unique(nl)
+  nl <- dplyr::mutate(nl, group = net) # attach name of networks to nodelist -- need them to assign 'group' membership in the graph
+  return(nl)
+}
+v_siren    <- nl(siren, net = "siren")
+v_togo     <- nl(togo, net = "togo")
+v_caviar   <- nl(caviar, net = "caviar")
+v_cielnet  <- nl(cielnet, net = "cielnet")
+v_cocaine  <- nl(cocaine, net = "cocaine")
+v_heroin   <- nl(heroin, net = "heroin")
+v_oversize <- nl(oversize, net = "oversize")
+v_montagna <- nl(montagna, net = "montagna")
 
-  # nodelist
-  v <- stack(oversizeWR) # names of all nodes in the wire tap records
-  v$ind <- NULL
-  v <- unique(v$values)
-  v <- as.data.frame(v)
-  v <- dplyr::rename(v, name = v)
-  
-  # undirected, binary graph object for the wire tap records 
-  oversizeWR <- igraph::graph_from_data_frame(
-    oversizeWR,
-    directed = FALSE, 
-    vertices = v # nodes
-    )
 
-  # undirected, binary graph object for the court records
-  oversizeJU <- igraph::graph_from_data_frame(
-    oversizeJU,
-    directed = FALSE, 
-    vertices = v # nodes
-    )
-  
-  # degree centrality for the court records
-  degreeJU <- igraph::degree(
-    oversizeJU, 
-    mode = "total", 
-    loops = FALSE
-    )
-  degreeJU0 <- degreeJU[degreeJU == 0] # isolates
 
-  # drop anyone from the wiretap record not named in court records
-  oversizeWR <- igraph::delete_vertices( # delete isolates
-    oversizeWR, 
-    names(degreeJU0)
-    )
-  rm(degreeJU, 
-     degreeJU0,
-     oversizeJU, 
-     v
-     )
+# transform igraph objects to network objects to estimate models
+graph <- function(e, v){
+  g <- igraph::graph_from_data_frame(e, directed = FALSE, vertices = v)
+  g <- igraph::simplify(g) # force the graph to not be of type 'multiple'
+  g <- intergraph::asNetwork(g)
+  return(g)
+}
+g_siren  <- graph(siren, v = v_siren)
+g_togo   <- graph(togo, v = v_togo)
+g_caviar <- graph(caviar, v = v_caviar)
+g_cielnet  <- graph(cielnet, v = v_cielnet)
+g_cocaine  <- graph(cocaine, v = v_cocaine)
+g_heroin   <- graph(heroin, v = v_heroin)
+g_oversize <- graph(oversize, v = v_oversize)
+g_montagna <- graph(montagna, v = v_montagna)
 
-# transform into adjacency matrix format
-oversizeWR <- igraph::as_adjacency_matrix(oversizeWR, names = TRUE)
-oversizeWR <- as.matrix(oversizeWR)
-oversizeWR <- as.data.frame(oversizeWR)
 
-# don't run
-# setwd("~/Desktop")
-# write.csv(oversizeWR, file = "berlusconietal_oversize.csv")
+
+# append edgelists to create 'super network' -----------------------------------
+g_super <- rbind(
+  siren,
+  togo,
+  caviar,
+  cielnet,
+  cocaine,
+  heroin,
+  oversize,
+  montagna
+  )
+
+# join into attribute data for super network
+v_super <- rbind(
+  v_siren,
+  v_togo,
+  v_caviar,
+  v_cielnet,
+  v_cocaine,
+  v_heroin,
+  v_oversize,
+  v_montagna
+  )
+
+# construct super network with names and 'group membership'
+g_super <- igraph::graph_from_data_frame( # 'group membership' automatically assigned as a node attribute
+  g_super, 
+  directed = FALSE, 
+  vertices = v_super
+  )
+g_super <- intergraph::asNetwork(g_super) # network object
+network::is.network(g_super) # check that graph is of type 'network'
+
+rm( # drop attribute data for individual networks
+  v_siren,
+  v_togo,
+  v_caviar,
+  v_cielnet,
+  v_cocaine,
+  v_heroin,
+  v_oversize,
+  v_montagna
+  )
+rm( # drop edgelists for individual networks
+  siren,
+  togo,
+  caviar,
+  cielnet,
+  cocaine,
+  heroin,
+  oversize,
+  montagna
+  )
+
+
 
 
 
 # close .r script
-
 
 

@@ -1,10 +1,10 @@
 #  ---------------------------------------------------------------------------------------------------
 
-# file 02: import and manipulate data used to estimate the hierarchical exponential random graph model
+# file 01: import and manipulate data used to estimate the hierarchical exponential random graph model
 
-# note: you must run this file before you run file named '03.R'
+# note: you must run this file before you run file named '02.R'
 
-# last updated: 27/02/2025
+# last updated: 15/04/2025
 
 # ----------------------------------------------------------------------------------------------------
 

@@ -2,7 +2,7 @@
 
 # file 02: estimate the Bayesian exponential random graph models
 
-# last updated: 15/04/2025
+# last updated: 23/04/2025
 
 # ------------------------------------------------------------------------------------
 
@@ -74,15 +74,13 @@ bayes <- function(y, x, mu, sigma){
   set.seed(20110210) # Halle's birthday
   
   # prior means
-  # c <- -log(network::network.size(y))
-  d <- sna::gden(g_siren, mode = "graph")
-  y0 <- log(d/(1-d))
   mu <- c(
-         y0, # density
-      -1.00, # centralization, negative terms 
-       0.50, 
-       0.50, 
-    -100.00
+    # c <- -log(network::network.size(y))
+    log(sna::gden(y, mode = "graph")/(1-sna::gden(y, mode = "graph"))), # density
+    0, # centralization, negative terms 
+    0, 
+    0,
+    0
     )
   
   # prior variance

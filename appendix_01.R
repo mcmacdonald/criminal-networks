@@ -10,6 +10,40 @@
 
 
 
+# function to compute the average performance for flows of information/communication i.e., measure of efficiency
+# https://www.sciencedirect.com/science/article/pii/S0378873309000021?casa_token=3zldsQl78o0AAAAA:kRAhfzm3AurSo0J3Vn3GSUJNmQiiaSHUylyNsqgBDWYXeQlkNvV7FbCMxfzDqlYovN0SQRI#sec3
+w_distance <- function(g){
+  
+  # igraph object
+  g <- intergraph::asIgraph(g)
+  
+  # compute the shortest path distances for all nodes
+  distance <- igraph::distances(g, mode = "all")
+  
+  # omit upper triangle of matrix because of the symmetry of the adjancency graph
+  distance[upper.tri(distance)] <- NA
+  
+  # calculate the total distance i.e., the sum of all pairwise shortest distances a.k.a, the Wiener index
+  total <- sum(distance, na.rm = TRUE)
+  
+  # number of nodes
+  n <- igraph::vcount(g)
+  
+  # compute average performance for the flows of information/communication
+  performance <- (n * (n - 1))/(total)
+  cat(message("interpretation: if everyone is able to communicate with everyone else, infromation can flow freely and efficiently throughout the network, which indicates optimal performance = 1; alternatively, worst performance = 0."))
+  cat(performance)
+}
+w_distance(g_siren)
+w_distance(g_togo)
+w_distance(g_caviar)
+w_distance(g_cielnet)
+w_distance(g_cocaine)
+w_distance(g_heroin)
+w_distance(g_oversize)
+w_distance(g_montagna)
+
+
 
 # function to generate the clustering coefficients of simulated graphs from the latent space model
 lsm <- function(g){
@@ -454,6 +488,42 @@ output(plot = spotlight_plot(
   ), 
   filename = "figA2h.pdf"
   )
+
+
+
+
+# function to compute the average performance for flows of information/communication i.e., measure of efficiency
+# https://www.sciencedirect.com/science/article/pii/S0378873309000021?casa_token=3zldsQl78o0AAAAA:kRAhfzm3AurSo0J3Vn3GSUJNmQiiaSHUylyNsqgBDWYXeQlkNvV7FbCMxfzDqlYovN0SQRI#sec3
+w_distance <- function(g){
+  
+  # igraph object
+  g <- intergraph::asIgraph(g)
+  
+  # compute the shortest path distances for all nodes
+  distance <- igraph::distances(g, mode = "all")
+  
+  # omit upper triangle of matrix because of the symmetry of the adjancency graph
+  distance[upper.tri(distance)] <- NA
+  
+  # calculate the total distance i.e., the sum of all pairwise shortest distances a.k.a, the Wiener index
+  total <- sum(distance, na.rm = TRUE)
+  
+  # number of nodes
+  n <- igraph::vcount(g)
+  
+  # compute average performance for the flows of information/communication
+  performance <- (n * (n - 1))/(total)
+  cat(message("interpretation: if everyone is able to communicate with everyone else, infromation can flow freely and efficiently throughout the network, which indicates optimal performance = 1; alternatively, worst performance = 0."))
+  cat(performance)
+}
+w_distance(g_siren)
+w_distance(g_togo)
+w_distance(g_caviar)
+w_distance(g_cielnet)
+w_distance(g_cocaine)
+w_distance(g_heroin)
+w_distance(g_oversize)
+w_distance(g_montagna)
 
 
 

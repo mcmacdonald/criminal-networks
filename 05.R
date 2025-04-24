@@ -1,8 +1,8 @@
 #  -----------------------------------------------------------------------------------
 
-# file 04: simulate the clustering coefficients from the Bayesian ERGMs
+# file 05: simulate the clustering coefficients from the Bayesian ERGMs
 
-# last updated: 15/04/2025
+# last updated: 23/04/2025
 
 # ------------------------------------------------------------------------------------
 

@@ -4,7 +4,7 @@
 
 # note: you must run this file before you run file named '02.R'
 
-# last updated: 15/04/2025
+# last updated: 23/04/2025
 
 # ----------------------------------------------------------------------------------------------------
 
@@ -167,64 +167,6 @@ g_cocaine  <- graph(cocaine, v = v_cocaine)
 g_heroin   <- graph(heroin, v = v_heroin)
 g_oversize <- graph(oversize, v = v_oversize)
 g_montagna <- graph(montagna, v = v_montagna)
-
-
-
-# append edgelists to create 'super network' -----------------------------------
-g_super <- rbind(
-  siren,
-  togo,
-  caviar,
-  cielnet,
-  cocaine,
-  heroin,
-  oversize,
-  montagna
-  )
-
-# join into attribute data for super network
-v_super <- rbind(
-  v_siren,
-  v_togo,
-  v_caviar,
-  v_cielnet,
-  v_cocaine,
-  v_heroin,
-  v_oversize,
-  v_montagna
-  )
-
-# construct super network with names and 'group membership'
-g_super <- igraph::graph_from_data_frame( # 'group membership' automatically assigned as a node attribute
-  g_super, 
-  directed = FALSE, 
-  vertices = v_super
-  )
-g_super <- intergraph::asNetwork(g_super) # network object
-network::is.network(g_super) # check that graph is of type 'network'
-
-rm( # drop attribute data for individual networks
-  v_siren,
-  v_togo,
-  v_caviar,
-  v_cielnet,
-  v_cocaine,
-  v_heroin,
-  v_oversize,
-  v_montagna
-  )
-rm( # drop edgelists for individual networks
-  siren,
-  togo,
-  caviar,
-  cielnet,
-  cocaine,
-  heroin,
-  oversize,
-  montagna
-  )
-
-
 
 
 

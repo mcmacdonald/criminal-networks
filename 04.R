@@ -72,4 +72,3 @@ g_montagna.sim <- simulator(
 # close .R script
 
 
-

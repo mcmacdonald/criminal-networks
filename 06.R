@@ -1,851 +1,989 @@
 #  -----------------------------------------------------------------------------------
 
-# file 06: estimate the hierarchical network model
+# file 04: simulate the degree assortativity coefficients from the Bayesian ERGMs
 
-# 'mlergm' package
-# https://cran.r-project.org/web/packages/mlergm/mlergm.pdf
-
-# don't run
-# install.package('mlergm')
-
-# last updated: 27/02/2025
+# last updated: 15/04/2025
 
 # ------------------------------------------------------------------------------------
 
 
 
-# posterior parameter estimation -----------------------------------------------
-bayes <- function(y, x){
-  i <- nrow(y) * 2  # burn in iterations to begin the MCMC run 
-  k <-    250  # sample iterations
-  h <-    5 * 2   # chains in the posterior distribution ... approximately twice the number of model parameters 
-  n <-    h * k   # per Caimo & Friel (2011), auxiliary chain = # chains (h) * sample iterations (k)
-  # load 'bergm' package
-  require('Bergm')
-  set.seed(20110210) # Halle's birthday
-  bayes <- Bergm::bergm(
-    x, # equation
-    gamma = 0.1 # empirically, gamma ranges 0.1 - 1.5, where smaller gamma leads to better acceptance in big graphs
-    )
-  return(bayes)
+# plot complimentary cumulative degree distribution ----------------------------------
+cdf_degree <- function(g, cmode){
+  par(mfrow=c(1,1)) # plot dimensions
+  # normalized degree centrality
+  d <- sna::degree(g, gmode = "graph", cmode = "freeman") # degree centrality for each node
+  d <- d/max(d); d <- round(x = d, digits = 2) # scores to range 0-1 and round to two decimal places
+  d <- d[order(d, decreasing = TRUE)] # sort from largest to smallest
+  # calculate complimentary cumulative distribution function (ccdf)
+  cdf <- stats::ecdf(d) # function to caclculate the empirical cdf
+  ccdf <- 1 - cdf(d) # ccdf
+  # join ccdf and normalized degree centrality
+  data <- cbind(ccdf, d); data <- as.data.frame(data)
+  colnames(data) <- c("ccdf", "ndegree") # column names 
+  # plot the ccdf
+  plot(log(data$ndegree), log(data$ccdf))
 }
+cdf_degree(g_siren)
+cdf_degree(g_togo)
+cdf_degree(g_caviar)
+cdf_degree(g_cielnet)
+cdf_degree(g_cocaine)
+cdf_degree(g_heroin)
+cdf_degree(g_oversize)
+cdf_degree(g_montagna)
 
-# function to calculate the decay parameter for the geometrically weighted degree statistic
-gwd_decay <- function(g, decay_range = seq(0.1, 5, by = 0.1), method = c("sse", "cor")) {
+
+
+# first, estimate the shape of the degree distribution and test it against different statistical distributions
+# start from the assumption that the degree is log-normal... Broido and Clauset 2019 find that most social networks produce log-normal degree distributions
+# 1) compare to the power law distribution, another heavy tailed distribution
+# 2) compare to the exponential distribution, a statistical distribution that does not have a heavy tail
+# 3) compare to the Poisson distribution, a statistical distribution that does not have a heavy tail
+
+
+
+# Vuong's likelihood ratio test for goodness-of-fit for the log normal distribution ----------------------------------------------------------------
+vuong = function(g, model){
   
-  # method, which can take one of two options
-  method <- match.arg(method)
+  # required packages
+  require("poweRlaw"); require("sna")
   
-  # if not an network object, transform to one
-  if (network::is.network(g)==TRUE){
-    g <- g
+  # interpretation of the goodness-of-fit test
+  cat("\n") # space
+  message("Vuong's likelihood ratio test is a sign test:")
+  message("* A likelihood-ratio test statistic > 0 suggests the degree distribution more closely resembles the shape of the log normal distribution.")
+  message("* A likelihood-ratio test statistic < 0 suggests the degree distribution more closely resembles the shape of the comparison distribution.")
+  message("* A larger test statistic, in either dirtection, suggests better goodness-of-fit.")
+  cat("\n") # space
+  message("Hypothesis statements for Vuong's likelihood ratio test:")
+  message("    H0: The degree distribution does not resemble the shape of the log normal or comparison distribution.")
+  message("    H1: The degree distribution resembles the shape of the log normal or comparison distribution.")
+  cat("\n") # space
+  
+  # degree distribution for the criminal networks
+  d <- sna::degree(g, gmode = "graph", cmode = "freeman", rescale = FALSE)
+  d <- d[d!=0] # drop nodes that do not have sender or receiver ties
+  d <- d[order(d, decreasing = FALSE)]
+  
+  # fit log-normal distribution
+  y = poweRlaw::dislnorm(d)
+  y$setXmin(1) # for all degree k
+  y$setPars(poweRlaw::estimate_pars(y))
+  
+  # fit comparison distribution
+  x = model(d)
+  x$setXmin(1) # for all degree k
+  x$setPars(poweRlaw::estimate_pars(x))
+  
+  # Vuong's likelihood-ratio test to compare models
+  lrtest = poweRlaw::compare_distributions(y, x)
+  # notes on the interpretation of Vuong's likelihood-ratio test statistic: 
+  # the sign of the test statistic (i.e., +/-) has meaning for interpretation (Vuong's formula is a sign test)
+  # because 'y' is the first input into the poweRlaw::compare_distributions() function and 'x' is the second:
+  # ... a positive (+) test statistic suggests the degree distribution more so resembles the log normal distribution
+  # ... a negative (-) test statistic suggests the degree distribution more so resembles the comparison distribution
+  # ... reversing the input order in poweRlaw::compare_distributions() (i.e., 'x' before 'y') computes the same test statistic, but in the opposite direction
+  
+  # test results
+  message("Results of Vuong's likelihood ratio test:")
+  cat("\n") # space
+  
+  # Vuong's likelihood-ratio test statistic 
+  lrstat = lrtest$test_statistic
+  cat("Vuong's likelihood-ratio test statistic = "); cat(lrstat ); cat("\n"); cat("\n")
+  
+  # p-value (one-tailed)
+  p = lrtest$p_one_sided # one sided p-values because Broido & Clauset (2019) find that the degree distributions of most social networks resemble log-normal distributions
+  # if p < 0.05, reject H0: the degree distribution neither resembles the power law distribution or Poisson distribution
+  # if p > 0.05, fail to reject H1: degree distribution resemebles power law distribution or Poisson distribution (see notes on Vuong's likelihood-ratio test)
+  cat( "p-value = "); cat(p); cat("\n"); cat("\n")
+  
+  # interpretation:
+  if(lrstat > 0){
+    message("The degree distribution more closely resembles the log normal distribution.")
+    if(p < 0.10){
+      cat("\n")
+      message("Reject the null hypothesis that the degree distribution does not resemble the log normal distribution.")
+    } else {"Fail to reject the null hypothesis that the degree distribution does not resemble the log normal distribution."}
   } else {
-    g <- intergraph::asIgraph(g)
+    message("The degree distribution more closely resembles the comparison distribution.")
+    if(p < 0.10){
+      cat("\n") 
+      message("Reject the null hypothesis that the degree distribution does not resemble the comparison distribution.")
+    } else {"Fail to reject the null hypothesis that the degree distribution does not resemble the comparison distribution."}
   }
   
-  # degree distribution
-  d_stat <- sna::degree(g, gmode = "graph")
-  d_table <- table(d_stat)
-  d_freq  <- as.numeric(d_table)
-  d_value <- as.numeric(names(d_table))
-  
-  # normalize degree distribution
-  d_norm <- d_freq / sum(d_freq)
-  
-  # calculate different decay values
-  scores <- sapply(decay_range, function(decay) {
-    
-    weights <- (1 - exp(-decay))^d_value
-    gwdegree <- sum(weights * d_freq)
-    
-    # Compare modeled vs actual
-    if (method == "sse") {
-      # Sum of squared error between weights and actual distribution
-      sum((weights - d_norm)^2)
-    } else if (method == "cor") {
-      # Negative correlation (since we want to maximize it)
-      -cor(weights, d_norm)
-    }
-  })
-  # don't run
-  # print(scores)
-  
-  # find the best decay value
-  decay <- decay_range[which.min(scores)]
-  return(decay)
+  # return results 
+  p <- as.data.frame(p)
+  colnames(p) <- c("p")
+  return(p)
 }
-# don't run 
-# gwd_decay(g_siren, decay_range = seq(0.1, 3, by = 0.1), method = "cor"); gwd_decay(g_siren, decay_range = seq(0.1, 3, by = 0.1), method = "sse")
+# compare log normal distribution to the power law distribution
+vuong_siren <- vuong(g_siren, model = poweRlaw::displ)
+vuong_togo <- vuong(g_togo, model = poweRlaw::displ)
+vuong_caviar <- vuong(g_caviar, model = poweRlaw::displ)
+vuong_cielnet <- vuong(g_cielnet, model = poweRlaw::displ)
+vuong_cocaine <- vuong(g_cocaine, model = poweRlaw::displ)
+vuong_heroin <- vuong(g_heroin, model = poweRlaw::displ)
+vuong_oversize <- vuong(g_oversize, model = poweRlaw::displ)
+vuong_montagna <- vuong(g_montagna, model = poweRlaw::displ)
+
+# compare log normal distribution to the exponential distribution
+vuong(g_siren, model = poweRlaw::disexp)
+vuong(g_togo, model = poweRlaw::disexp)
+vuong(g_caviar, model = poweRlaw::disexp)
+vuong(g_cielnet, model = poweRlaw::disexp)
+vuong(g_cocaine, model = poweRlaw::disexp)
+vuong(g_heroin, model = poweRlaw::disexp)
+vuong(g_oversize, model = poweRlaw::disexp)
+vuong(g_montagna, model = poweRlaw::disexp)
+
+# compare log normal distribution to the Poisson distribution
+vuong(g_siren, model = poweRlaw::dispois)
+vuong(g_togo, model = poweRlaw::dispois)
+vuong(g_caviar, model = poweRlaw::dispois)
+vuong(g_cielnet, model = poweRlaw::dispois)
+vuong(g_cocaine, model = poweRlaw::dispois)
+vuong(g_heroin, model = poweRlaw::dispois)
+vuong(g_oversize, model = poweRlaw::dispois)
+vuong(g_montagna, model = poweRlaw::dispois)
 
 
 
-# compute Bayes' factors -------------------------------------------------------
-# https://cran.r-project.org/web/packages/BFpack/vignettes/vignette_BFpack.html
-BF <- function(model, priors){ 
-  
-  # for replication
-  set.seed(20240517) # Bugsy's birthday
-  
-  # don't run
-  # this function assumes equal prior probabilities of p = 1/3 = 0.33
-  # bf <- BFpack::BF(model)
-  
-  # function to calculate Bayes' factor
-  # https://github.com/jomulder/BFpack
-  # https://bfpack.info
-  # https://cran.r-project.org/web/packages/BFpack/vignettes/vignette_BFpack.html
-  bf <- BFpack::BF(
-    model,
-    prior.hyp = priors
-  )
-  
-  # hypothesis test
-  bf <- bf$PHP_exploratory
-  bf <- round(bf, digits = 3) # round posterior probabilities to three decimals
-  
-  # label coefficients
-  row.names(bf) <- c("gwdegree", "gwdsp", "gwesp", "degcor")
-  
-  # interpretation of the hypothesis tests
-  # see Mulder et al., p.48: https://www.sciencedirect.com/science/article/pii/S0378873323000801?via%3Dihub
-  cat(message("Bayesian hypothesis test -- posterior probabilities of the hypotheses for each model parameter:"))
-  cat("\n")
-  print(bf)
-  cat("\n")
-  cat(message("The columns indicate the probability that the coefficient = 0, < 0, and > 0.")) # e.g., P(B > 0 | Y)
-  cat("\n")
-  cat(message("Note: Bayesian hypothesis tests not provided for the edges coefficient because an improper flat prior is used for this parameter."))
-}
-
-
-
-# goodness-of-fit --------------------------------------------------------------
-GOF <- function(bayes){
-  set.seed(20110211) # Halle's birthday
-  n <- 10000 # graph simulations
-  i <- 15 # degree distribution range
-  j <- 15 # geodisstance range 
-  k <- 15 # edgewise-shared partners range
-  fit <- Bergm::bgof(
-    bayes,
-    n.deg  = i,
-    n.dist = j,
-    n.esp  = k,
-    directed = F,    # symmetric graph
-    sample.size = n # random graph realizations
-    )
-  return(fit)
-}
-
-
-
-# estimate the model -----------------------------------------------------------
-bayes_01.siren <- bayes(
-  y = g_siren,
-  x = g_siren ~ edges + 
-    gwdegree(decay = gwd_decay(g_siren), fixed = TRUE) + # gwdegree(decay = 3.0, fixed = TRUE) 
-    gwdsp(decay = 2.0, fixed = TRUE) +
-    gwesp(decay = 2.0, fixed = TRUE) +
-    degcor
-    )
-summary(bayes_01.siren)
-
-# hypothesis test
-BF(bayes_01.siren, priors = c(1/3, 1/3, 1/3))
-
-# goodness-of-fit
-gof_01.siren <- GOF(bayes_01.siren)
-
-
-# estimate the model -----------------------------------------------------------
-bayes_02.togo <- bayes(
-  y = g_togo,
-  x = g_togo ~ edges + 
-    gwdegree(decay = gwd_decay(g_togo), fixed = TRUE) + # gwdegree(decay = 0.5, fixed = TRUE)
-    gwdsp(decay = 1.0, fixed = TRUE) +
-    gwesp(decay = 1.0, fixed = TRUE) +
-    degcor
-    )
-summary(bayes_02.togo)
-
-# hypothesis test
-BF(bayes_02.togo, priors = c(1/3, 1/3, 1/3))
-
-# goodness-of-fit
-gof_02.togo <- GOF(bayes_02.togo)
-
-
-# estimate the model -----------------------------------------------------------
-bayes_03.caviar <- bayes(
-  y = g_caviar,
-  x = g_caviar ~ edges + 
-    gwdegree(decay = 1.5, fixed = TRUE) + # gwdegree(decay = 2.0, fixed = TRUE)
-    gwdsp(decay = 2.0, fixed = TRUE) +
-    gwesp(decay = 2.0, fixed = TRUE) +
-    degcor
-    )
-summary(bayes_03.caviar)
-
-# hypothesis test
-BF(bayes_03.caviar, priors = c(1/3, 1/3, 1/3))
-
-# goodness-of-fit
-gof_03.caviar <- GOF(bayes_03.caviar)
-
-
-# estimate the model -----------------------------------------------------------
-bayes_04.cielnet <- bayes(
-  y = g_cielnet,
-  x = g_cielnet ~ edges + 
-    gwdegree(decay = 1.0, fixed = TRUE) +
-    gwdsp(decay = 0.2, fixed = TRUE) +
-    gwesp(decay = 0.2, fixed = TRUE) +
-    degcor
-    )
-summary(bayes_04.cielnet)
-
-# hypothesis test
-BF(bayes_04.cielnet, priors = c(1/3, 1/3, 1/3))
-
-# goodness-of-fit
-gof_04.cielnet <- GOF(bayes_04.cielnet)
-
-
-# estimate the model -----------------------------------------------------------
-bayes_05.cocaine <- bayes(
-  y = g_cocaine,
-  x = g_cocaine ~ edges + 
-    gwdegree(decay = 1.2, fixed = TRUE) + # gwdegree(decay = 1.5, fixed = TRUE)
-    gwdsp(decay = 0.5, fixed = TRUE) +
-    gwesp(decay = 0.5, fixed = TRUE) +
-    degcor
-    )
-summary(bayes_05.cocaine)
-
-# hypothesis test
-BF(bayes_05.cocaine, priors = c(1/3, 1/3, 1/3))
-
-# goodness-of-fit
-gof_05.cocaine <- GOF(bayes_05.cocaine)
-
-
-# estimate the model -----------------------------------------------------------
-bayes_06.heroin <- bayes(
-  y = g_heroin,
-  x = g_heroin ~ edges + 
-    gwdegree(decay = gwd_decay(g_heroin), fixed = TRUE) +  # gwdegree(decay = 2.5, fixed = TRUE)
-    gwdsp(decay = 0.3, fixed = TRUE) +
-    gwesp(decay = 0.3, fixed = TRUE) +
-    degcor
-   )
-summary(bayes_06.heroin)
-
-# hypothesis test
-BF(bayes_06.heroin, priors = c(1/3, 1/3, 1/3))
-
-# goodness-of-fit
-gof_06.heroin <- GOF(bayes_06.heroin)
-
-
-# estimate the model -----------------------------------------------------------
-bayes_07.oversize <- bayes(
-  y = g_oversize,
-  x = g_oversize ~ edges + 
-    gwdegree(decay = 1.5, fixed = TRUE) +
-    gwdsp(decay = 1.5, fixed = TRUE) +
-    gwesp(decay = 0.5, fixed = TRUE) +
-    degcor
-    )
-summary(bayes_07.oversize)
-
-# hypothesis test
-BF(bayes_07.oversize, priors = c(1/3, 1/3, 1/3))
-
-# goodness-of-fit
-gof_07.oversize <- GOF(bayes_07.oversize)
-
-
-# estimate the model -----------------------------------------------------------
-bayes_08.montagna <- bayes(
-  y = g_montagna,
-  x = g_montagna ~ edges + 
-    gwdegree(decay = 2.0, fixed = TRUE) + # gwdegree(decay = 2.0, fixed = TRUE)
-    gwdsp(decay = 2.0, fixed = TRUE) +
-    gwesp(decay = 2.0, fixed = TRUE) +
-    degcor
-    )
-summary(bayes_08.montagna)
-
-# hypothesis test
-BF(bayes_08.montagna, priors = c(1/3, 1/3, 1/3))
-
-# goodness-of-fit
-gof_08.montagna <- GOF(bayes_08.montagna)
-
-
-
-# function to compute the posterior estimates ----------------------------------
-posteriors <- function(model, g, name){
-  
-  # posterior estimates of the model
-  theta <- as.data.frame(model$Theta)
-  colnames(theta) <- c("edges", "gwdegree", "gwdsp", "gwesp", "degcor")
-
-  # transform the degree correlation term
-  theta <- dplyr::mutate(theta, degcor = degcor/100)
-  
-  # means of the posterior estimates
-  mu <- colMeans(theta)
-  
-  # standard deviation of the posterior estimates
-  sd <- matrixStats::colSds(as.matrix(theta))
-  
-  # naive standard errors
-  se1 <- apply(theta, 2, function(x) sd(x) / sqrt(nrow(theta)))
-  
-  # function to calculate the standard errors because of the auto-correlation in the iterations
-  tsseFUN <- function(samples){
-    mcmc <- coda::mcmc(samples) # MCMC object for auto-correlation analysis
-    ess <- coda::effectiveSize(mcmc) # effective sample size
-    var <- stats::var(samples) # variance of the posterior estimates
-    stderr <- sqrt(var / ess) # time-series standard error
-    return(stderr)
-  }
-  se2 <- apply(theta, 2, tsseFUN)
-  
-  # join posterior means and standard errors
-  data <- cbind(mu, sd, se1, se2)
-  
-  # names of the parameters
-  rownames(data) <- c("DYADS", "GWDEGREE", "GWDSP", "GWESP", "ASSORTATIVITY")
-  parameters <- as.data.frame(rownames(data))
-  parameters <- dplyr::mutate(parameters, model = name)
-  
-  # join
-  data <- cbind(parameters, data)
-  colnames(data) <- c("parameters", "model", "mean", "sd", "stderr", "stderr.ts")
-  rownames(data) <- NULL
-  return(data)
-}
-posteriors_bergm <- rbind(
-  posteriors(model = bayes_01.siren, g = g_siren, name = "siren"),
-  posteriors(model = bayes_02.togo, g = g_togo, name = "togo"),
-  posteriors(model = bayes_03.caviar, g = g_caviar, name = "caviar"),
-  posteriors(model = bayes_04.cielnet, g = g_cielnet, name = "cielnet"),
-  posteriors(model = bayes_05.cocaine, g = g_cocaine, name = "cocaine"),
-  posteriors(model = bayes_06.heroin, g = g_heroin, name = "heroin"),
-  posteriors(model = bayes_07.oversize, g = g_oversize, name = "oversize"),
-  posteriors(model = bayes_08.montagna, g = g_montagna, name = "montagna")
-  )
-
-
-
-# network meta-analysis that computes the weighted averages for each of the model parameters i.e., the hierarchical model
-metanet <- function(data, parameter){
+# Vuong's likelihood ratio test for goodness-of-fit for the log normal distribution ----------------------------------------------------------------
+vuong_simulator = function(simulations, model1, model2){
   
   # required packages
-  require("metafor")
+  require("poweRlaw"); require("sna")
   
-  # first, subset data by the parameter
-  data <- subset(data, parameters == parameter)
+  # number of simulations
+  samples <- length(simulations)
   
-  # estimate the hierarchical model i.e., random effects model
-  model <- metafor::rma.mv(
-    yi = mean, # parameter estimate
-    V = stderr.ts^2, # squared standard error i.e., level 1 of the model
-    random = ~1 | model, # parameter from each model for all the criminal networks i.e., level 2 of the model
-    data = data
-    )
-  return(model)
+  # results
+  results <- c()
+  
+  for (i in 1:samples){
+  
+  # degree distribution for the criminal networks
+  d <- sna::degree(simulations[[i]], gmode = "graph", cmode = "freeman", rescale = FALSE)
+  d <- d[d!=0] # drop nodes that do not have sender or receiver ties
+  d <- d[order(d, decreasing = FALSE)]
+  
+  # fit distribution
+  y = model1(d)
+  y$setXmin(min(d)) # for all degree k
+  y$setPars(poweRlaw::estimate_pars(y))
+  
+  # fit comparison distribution
+  x = model2(d)
+  x$setXmin(min(d)) # for all degree k
+  x$setPars(poweRlaw::estimate_pars(x))
+  
+  # Vuong's likelihood-ratio test to compare models
+  lrtest = poweRlaw::compare_distributions(y, x)
+  
+  # Vuong's likelihood-ratio test statistic 
+  lrstat = lrtest$test_statistic
+ 
+  # p-value (one-tailed)
+  p = lrtest$p_one_sided
+  
+  # join p-values to results vector
+  results <- c(results, p)
+  }
+  
+  # return results
+  results <- as.data.frame(results)
+  colnames(results) <- c("p")
+  return(results)
 }
+# compare log normal distribution to the power law distribution
+vuong_siren.sim <- vuong_simulator(simulations = g_siren.sim, model1 = poweRlaw::dislnorm, model2 = poweRlaw::displ)
+vuong_togo.sim <- vuong_simulator(simulations = g_togo.sim, model1 = poweRlaw::dislnorm, model2 = poweRlaw::displ)
+vuong_caviar.sim <- vuong_simulator(simulations = g_caviar.sim, model1 = poweRlaw::dislnorm, model2 = poweRlaw::displ)
+vuong_cielnet.sim <- vuong_simulator(simulations = g_cielnet.sim, model1 = poweRlaw::dislnorm, model2 = poweRlaw::displ)
+vuong_cocaine.sim <- vuong_simulator(simulations = g_cocaine.sim, model1 = poweRlaw::dislnorm, model2 = poweRlaw::displ)
+vuong_heroin.sim <- vuong_simulator(simulations = g_heroin.sim, model1 = poweRlaw::dislnorm, model2 = poweRlaw::displ)
+vuong_oversize.sim <- vuong_simulator(simulations = g_oversize.sim, model1 = poweRlaw::dislnorm, model2 = poweRlaw::displ)
+vuong_montagna.sim <- vuong_simulator(simulations = g_montagna.sim, model1 = poweRlaw::dislnorm, model2 = poweRlaw::displ)
+
+# compare the power law distribution to the log normal distribution
+vuong_siren.sim <- vuong_simulator(simulations = g_siren.sim, model1 = poweRlaw::displ, model2 = poweRlaw::dislnorm)
+vuong_togo.sim <- vuong_simulator(simulations = g_togo.sim, model1 = poweRlaw::displ, model2 = poweRlaw::dislnorm)
+vuong_caviar.sim <- vuong_simulator(simulations = g_caviar.sim, model1 = poweRlaw::displ, model2 = poweRlaw::dislnorm)
+vuong_cielnet.sim <- vuong_simulator(simulations = g_cielnet.sim, model1 = poweRlaw::displ, model2 = poweRlaw::dislnorm)
+vuong_cocaine.sim <- vuong_simulator(simulations = g_cocaine.sim, model1 = poweRlaw::displ, model2 = poweRlaw::dislnorm)
+vuong_heroin.sim <- vuong_simulator(simulations = g_heroin.sim, model1 = poweRlaw::displ, model2 = poweRlaw::dislnorm)
+vuong_oversize.sim <- vuong_simulator(simulations = g_oversize.sim, model1 = poweRlaw::displ, model2 = poweRlaw::dislnorm)
+vuong_montagna.sim <- vuong_simulator(simulations = g_montagna.sim, model1 = poweRlaw::displ, model2 = poweRlaw::dislnorm)
 
 
-# meta-analysis of each of the parameters
-effect <- function(data, parameter){
+
+
+# compare log normal distribution to the exponential distribution
+vuong_siren.sim <- vuong_simulator(simulations = g_siren.sim, model = poweRlaw::disexp)
+vuong_togo.sim <- vuong_simulator(simulations = g_togo.sim, model = poweRlaw::disexp)
+vuong_caviar.sim <- vuong_simulator(simulations = g_caviar.sim, model = poweRlaw::disexp)
+vuong_cielnet.sim <- vuong_simulator(simulations = g_cielnet.sim, model = poweRlaw::disexp)
+vuong_cocaine.sim <- vuong_simulator(simulations = g_cocaine.sim, model = poweRlaw::disexp)
+vuong_heroin.sim <- vuong_simulator(simulations = g_heroin.sim, model = poweRlaw::disexp)
+vuong_oversize.sim <- vuong_simulator(simulations = g_oversize.sim, model = poweRlaw::disexp)
+vuong_montagna.sim <- vuong_simulator(simulations = g_montagna.sim, model = poweRlaw::disexp)
+
+# compare log normal distribution to the Poisson distribution
+vuong_siren.sim <- vuong_simulator(simulations = g_siren.sim, model = poweRlaw::dispois)
+vuong_togo.sim <- vuong_simulator(simulations = g_togo.sim, model = poweRlaw::dispois)
+vuong_caviar.sim <- vuong_simulator(simulations = g_caviar.sim, model = poweRlaw::dispois)
+vuong_cielnet.sim <- vuong_simulator(simulations = g_cielnet.sim, model = poweRlaw::dispois)
+vuong_cocaine.sim <- vuong_simulator(simulations = g_cocaine.sim, model = poweRlaw::dispois)
+vuong_heroin.sim <- vuong_simulator(simulations = g_heroin.sim, model = poweRlaw::dispois)
+vuong_oversize.sim <- vuong_simulator(simulations = g_oversize.sim, model = poweRlaw::dispois)
+vuong_montagna.sim <- vuong_simulator(simulations = g_montagna.sim, model = poweRlaw::dispois)
+
+
+
+
+
+# plot the distribution of p-values from the Vuong likelihood ratio test
+vuong_plot <- function(sim.data, obs.data, title){
   
   # required packages
-  require("metafor")
+  require('ggplot2'); require('scales'); library('ggplot2')
   
-  # first, subset data by the parameter
-  data <- subset(data, parameters == parameter)
+  # label to annotate the p-value for the Vuong test of the actual criminal networks
+  sig <- obs.data
+  sig <- sig$p
+  label <- round(sig, digits = 2)
   
-  # calculate the effect sizes
-  outcome <- metafor::escalc(
-    # see pg. 89 for options: https://cran.r-project.org/web/packages/metafor/metafor.pdf
-    # see pg. 95: use "GEN" for generic outcome measure that is not further specified
-    measure = "SMN", # standardized mean
-    yi = mean,
-    sei = stderr.ts,
-    slab = model,
-    data = data
-    )
-  return(outcome)
+  # flag statistical significance
+  sim.data$tail_flag <- sim.data$p < 0.10
+  
+  # p-values for the Vuong test from the networks simulated from the ERGMs
+  histogram <- ggplot2::ggplot(sim.data, ggplot2::aes(x = p)) +
+    ggplot2::geom_histogram(
+      ggplot2::aes(y = ggplot2::after_stat(count)/sum(ggplot2::after_stat(count)), fill = tail_flag),
+      binwidth = 0.05,
+      color = "black",
+      alpha = 0.80
+      ) +
+    # shaded tail for p < 0.10
+    ggplot2::scale_fill_manual(values = c("TRUE" = "skyblue1", "FALSE" = "white"), guide = "none") +
+    # transform y-axis to percentage scale
+    ggplot2::scale_y_continuous(
+      name = "PROBABILITY DENSITY FUNCTION (PDF)", 
+      labels = scales::percent_format(accuracy = 1L), # 2L to round to one decimal place, 3L to round to two decimal places, etc.
+      limits = c(0.00, 1.00), 
+      breaks = seq(0.00, 1.00, by = 0.20)
+      ) +
+    ggplot2::scale_x_continuous(
+      name = expression(italic(P)*"-VALUES"),
+      labels = scales::label_number(accuracy = 0.01),
+      breaks = seq(0.00, 1.00, by = 0.1)
+      ) +
+    ggplot2::coord_cartesian(xlim = c(0.00, 1.00)) +
+    # p-value for the Vuong test from the actual criminal networks
+    ggplot2::geom_vline(
+      data = obs.data, 
+      ggplot2::aes(xintercept = p), 
+      color = "firebrick3", 
+      linetype = "dashed", 
+      linewidth = 1,
+      alpha = 0.80
+      ) +
+    # annotation for the p-value for the actual networks
+    ggplot2::annotate(geom = "label", x = label, y = 0.50, label = sprintf('%0.2f', label), size = 2) +
+    ggthemes::theme_few() +
+    ggplot2::ggtitle(title) +
+    ggplot2::theme(
+      plot.title = ggplot2::element_text(size = 5, face = "plain"),
+      axis.text.x = ggplot2::element_text(color = "black", size = 5, hjust = 0.5, vjust = 0.5, face = "plain"),
+      axis.text.y = ggplot2::element_text(color = "black", size = 5, hjust = 1.0, vjust = 0.0, face = "plain"),  
+      axis.title.x = ggplot2::element_text(color = "black", size = 5, hjust = 0.5, vjust = 0.0, face = "plain"),
+      axis.title.y = ggplot2::element_text(color = "black", size = 5, hjust = 0.5, vjust = 0.5, face = "plain")
+      )
+  plot(histogram)
+  return(histogram)
 }
-effect(data = posteriors_bergm, parameter = "GWDEGREE")
-
-
-
-
-# network meta-analysis that computes the weighted averages for each of the model parameters i.e., the hierarchical Bayesian model
-metanet_bayes <- function(data, parameter){
-  
-  # set seed for replication
-  set.seed(20110210) # Halle's birthday
-  
-  # required packages
-  require("bayesmeta"); require("metafor")
-  
-  # first, subset data by the parameter
-  data <- subset(data, parameters == parameter)
-  
-  # vector of effect sizes
-  mean <- data$mean
-  
-  # vector of standard errors
-  sigma <- if (parameter == "ASSORTATIVITY") {
-    data$stderr.ts
-    } else {
-      data$stderr
-  }
-  
-  # vector of labels 
-  model <- data$model
-  
-  # sample weights
-  weights <- 1/(sigma^2)
-  
-  # prior mean
-  prior.mu <- sum(weights * mean)/sum(weights) 
-  
-  # prior standard deviation
-  w_var <- sum(weights * (mean - prior.mu)^2)/(sum(weights) - sum(weights^2)/sum(weights)) # weighted sample variance
-  prior.sd <- sqrt(w_var) #  weighted standard deviation is the square root of the weighted variance
-  
-  # tau prior
-  prior.tau <- function(t){bayesmeta::dhalfcauchy(t, scale = 1)}
-  # prior.TAU <- function(tau) {
-    # ifelse(tau >= 0.001 & tau <= 3, bayesmeta::dhalfnormal(tau, scale = 1), 0)
-  # }
-  
-  # estimate the hierarchical Bayesian model
-  model <- bayesmeta::bayesmeta(
-    y = mean,
-    sigma = sigma,
-    mu.prior.mean = prior.mu,
-    mu.prior.sd = prior.sd,
-    tau.prior = prior.tau,
-    label = model
-    )
-  return(model)
-}
-meta_01 <- metanet_bayes(data = posteriors_bergm, parameter = "DYADS")
-meta_02 <- metanet_bayes(data = posteriors_bergm, parameter = "GWDEGREE")
-meta_03 <- metanet_bayes(data = posteriors_bergm, parameter = "GWDSP")
-meta_04 <- metanet_bayes(data = posteriors_bergm, parameter = "GWESP")
-meta_05 <- metanet_bayes(data = posteriors_bergm, parameter = "ASSORTATIVITY")
-
-
-
-# compile results of the meta analysis into one dataset to plot the results
-reshape_metabayes <- function(model, effect){
-  
-  # model parameter
-  effect <- effect
-
-  # reconfigure average effects into dataframe
-  data <- as.data.frame(model$summary)
-  rownames(data) <- NULL
-  
-  # transpose
-  data <- as.data.frame(t(data))
-  
-  # columns
-  colnames(data) <- c("mode", "median", "mean", "sd", "ci.lo", "ci.hi")
-  
-  # columns
-  data <- dplyr::select(data, mean, sd, ci.lo, ci.hi)
-  
-  # compute quantile range for plot
-  Q1 <- data$mean + (stats::qnorm(0.25) * data$sd)
-  Q3 <- data$mean + (stats::qnorm(0.75) * data$sd)
-  
-  # join
-  data <- cbind(data, Q1, Q3)
-  
-  # join
-  data <- cbind(effect, data)
-  data <- as.data.frame(data[2,])
-  rownames(data) <- NULL
-  
-  # return the dataset for plotting
-  return(data)
-}
-meta_results2 <- rbind(
-  reshape_metabayes(model = metanet_bayes(data = posteriors_bergm, parameter = "DYADS"), effect = "DYADS"),
-  reshape_metabayes(model = metanet_bayes(data = posteriors_bergm, parameter = "GWDEGREE"), effect = "GWDEGREE"),
-  reshape_metabayes(model = metanet_bayes(data = posteriors_bergm, parameter = "GWDSP"), effect = "GWDSP"),
-  reshape_metabayes(model = metanet_bayes(data = posteriors_bergm, parameter = "GWESP"), effect = "GWESP"),
-  reshape_metabayes(model = metanet_bayes(data = posteriors_bergm, parameter = "ASSORTATIVITY"), effect = "ASSORTATIVITY")
-  )
-
-
-
-# compile results of the meta analysis into one dataset to plot the results
-reshape_metafor <- function(model, effect){
-  
-  # model parameter
-  effect <- effect
-  
-  # multilevel model parameters
-  fetch <- function(thing){
-    thing <- as.numeric(thing)
-    return(thing)
-  }
-  beta <- fetch(model$beta)
-  stderr <- fetch(model$se)
-  pvalue <- fetch(model$pval)
-  ci.lo <- fetch(model$ci.lb)
-  ci.hi <- fetch(model$ci.ub)
-  
-  # compute quantile range for plot
-  Q1 <- beta + (stats::qnorm(0.25) * stderr); Q3 <- beta + (stats::qnorm(0.75) * stderr)
-  
-  # join
-  data <- as.data.frame(cbind(beta, stderr, pvalue, ci.lo, ci.hi, Q1, Q3))
-  data <- cbind(effect, data)
-  
-  # function to label p-values with asterisks
-  label <- function(p) {
-    if (p < 0.001) return("***")
-    if (p < 0.01) return("**")
-    if (p < 0.05) return("*")
-    return("n.s.") # uniciode characters for n.s.: \u207F\u00B7\u02E2\u00B7
-  }
-  data$p.signif <- label(data$pvalue)
-  
-  # return the dataset for plotting
-  return(data)
-}
-meta_results <- rbind(
-  reshape_metafor(metanet(data = posteriors_bergm, parameter = "DYADS"), effect = "DYADS"),
-  reshape_metafor(metanet(data = posteriors_bergm, parameter = "GWDEGREE"), effect = "GWDEGREE"),
-  reshape_metafor(metanet(data = posteriors_bergm, parameter = "GWDSP"), effect = "GWDSP"),
-  reshape_metafor(metanet(data = posteriors_bergm, parameter = "GWESP"), effect = "GWESP"),
-  reshape_metafor(metanet(data = posteriors_bergm, parameter = "ASSORTATIVITY"), effect = "ASSORTATIVITY")
-  )
-
-
-
-# boxplot of the weighted average model parameters across the models
-
-# set seed for replication
-set.seed(20190816) # Maeve's birthday
-
-# function to set the labels for the y-axis
-scaleFUN <- function(x) sprintf("%.2f", x)
-
-# level factors so that the function plots them in the correct order
-meta_results2$effect <- factor(meta_results2$effect, levels = c("DYADS", "GWDEGREE", "GWDSP", "GWESP", "ASSORTATIVITY"))
-
-# construct the boxplot
-fig_meta <- ggplot2::ggplot(meta_results2, aes(x = effect, y = mean)) +
-  # horizontal line to marker where y = 0
-  ggplot2::geom_hline(yintercept = 0.00, color = "red", linetype = "dashed", size = 1, alpha = 0.8) +
-  # error bars to visualize the confidence intervals
-  ggplot2::geom_errorbar(aes(ymin = ci.lo, ymax = ci.hi), width = 0.2, color = "black") +
-  # data points
-  ggplot2::geom_jitter(
-    data = posteriors_bergm, 
-    mapping = ggplot2::aes(x = parameters, y = mean), 
-    width = 0.2, 
-    size = 2, 
-    shape = 21, # circles
-    color = "black",
-    fill = "white",
-    alpha = 1.0
-    ) +
-  # boxplot
-  ggplot2::geom_boxplot(
-    ggplot2::aes(lower = Q1, upper = Q3, middle = mean, ymin = ci.lo, ymax = ci.hi), 
-    stat = "identity",
-    fill = "lightgrey", color = "black", width = 0.5, alpha = 1.0
-    ) +
-  # don't run
-  # circle points for the mean
-  # ggplot2::geom_point(size = 3, color = "black") +
-  ggplot2::scale_y_continuous(limits = c(-6, 2), breaks = seq(-6, 2, 1), labels = scaleFUN) +
-  ggplot2::labs(
-    # title = "NETWORK META-ANALYSIS",
-    x = "MODEL PARAMETERS",
-    y = "WEIGHTED POSTERIOR ESTIMATES"
-    ) +
-  ggthemes::theme_base() +
-  ggplot2::theme(
-    legend.position = "none",
-    axis.text.x = ggplot2::element_text(angle = 45, vjust = 0.5, hjust = 0.5, size = 8),
-    axis.title.x = ggplot2::element_text(size = 10, face = "plain"),
-    axis.text.y = ggplot2::element_text(angle =  0, vjust = 0.5, hjust = 0.5, size = 8),
-    axis.title.y = ggplot2::element_text(size = 10, face = "plain")
-    )
 
 # output high resolution images
 output <- function(plot, filename){
   ggplot2::ggsave(
     filename,
     plot,
-    path = "~/Desktop", 
-    width = 5, 
-    height = 5, 
-    device = 'png', 
+    path = "~/Desktop/super/", 
+    width = 2.5, 
+    height = 2, 
+    device = 'pdf', 
     dpi = 700
     )
+}
+output(vuong_plot(
+  sim.data = vuong_siren.sim, 
+  obs.data = vuong_siren, 
+  title = "(A) SIREN AUTO THEFT RING"
+  ),
+  filename = "figA7a.pdf"
+  )
+output(vuong_plot(
+  sim.data = vuong_togo.sim, 
+  obs.data = vuong_togo, 
+  title = "(B) TOGO AUTO THEFT RING"
+  ),
+  filename = "figA7b.pdf"
+  )
+output(vuong_plot(
+  sim.data = vuong_caviar.sim, 
+  obs.data = vuong_caviar, 
+  title = "(C) CAVIAR DRUG TRAFFICKING ORGANIZATION"
+  ),
+  filename = "figA7c.pdf"
+  )
+output(vuong_plot(
+  sim.data = vuong_cielnet.sim, 
+  obs.data = vuong_cielnet, 
+  title = "(D) CIEL DRUG TRAFFICKING ORGANIZATION"
+  ),
+  filename = "figA7d.pdf"
+  )
+output(vuong_plot(
+  sim.data = vuong_cocaine.sim, 
+  obs.data = vuong_cocaine, 
+  title = "(E) CARTEL SATELLITE COCAINE TRAFFICKERS"
+  ),
+  filename = "figA7e.pdf"
+  )
+output(vuong_plot(
+  sim.data = vuong_heroin.sim, 
+  obs.data = vuong_heroin, 
+  title = "(F) LA COSA NOSTRA HEROIN TRAFFICKING OUTFIT"
+  ),
+  filename = "figA7f.pdf"
+  )
+output(vuong_plot(
+  sim.data = vuong_oversize.sim, 
+  obs.data = vuong_oversize, 
+  title = "(G) 'NDRANGHETA DRUG TRAFFICKING OPERATION" 
+  ),
+  filename = "figA7g.pdf"
+  )
+output(vuong_plot(
+  sim.data = vuong_montagna.sim, 
+  obs.data = vuong_montagna, 
+  title = "(H) COSA NOSTRA BID-RIGGING CONSPIRACY"
+  ),
+  filename = "figA7h.pdf"
+  )
+
+
+
+
+
+# estimate the shape of the degree distribution from the model -------------------------------------------------------------------
+mle <- function(g, model, n){
+  
+  # required packages
+  require("poweRlaw"); require("sna")
+  
+  # degree distribution for the criminal networks
+  d <- sna::degree(g, gmode = "graph", cmode = "freeman", rescale = FALSE)
+  d <- d[order(d, decreasing = FALSE)]
+  
+  # fit model to estimate the shape of the cumulative distribution function
+  ccdf = model(d)
+  
+  # if-else statement to set the cut-point for the distribution
+  if (any(class(model) %in% c("dislnorm", "disexp", "dispois"))) {
+    ccdf$setXmin(min(d)) # estimate the model for all degree k > 0
+  } else{
+    # let the model set the cut-off point for degree k for the power law distribution
+    k <- poweRlaw::estimate_xmin(ccdf)
+    ccdf$setXmin(k)
   }
-output(plot = fig_meta, filename = "fig_meta.png")
+  
+  # model parameters
+  ccdf$setPars(poweRlaw::estimate_pars(ccdf))
+  
+  # if-else statement to estimates bootstrapped confidence intervals for the shape of the distribution
+  if (any(class(model) %in% c("dislnorm", "disexp", "dispois"))) {
+    ci <- poweRlaw::bootstrap(
+      ccdf,
+      xmins = min(d),
+      no_of_sims = n,
+      threads = 4,
+      seed = 16052024
+    )
+  } else {
+    ci <- poweRlaw::bootstrap(
+      ccdf,
+      # xmins = seq(min(d), max(d), 1),
+      xmins = ccdf$xmin,
+      no_of_sims = n,
+      threads = 4,
+      seed = 16052024
+    )
+  }
+  
+  # if-else statement to calculate the p-values for the hypothesis test
+  if (any(class(model) %in% c("dislnorm", "disexp", "dispois"))) {
+    p <- poweRlaw::bootstrap_p(
+      ccdf,#  -----------------------------------------------------------------------------------
+      
+      # file 04: simulate the degree assortativity coefficients from the Bayesian ERGMs
+      
+      # last updated: 15/04/2025
+      
+      # ------------------------------------------------------------------------------------
+      
+      
+      
+      # calculate the degree assortativity coefficient of each of the criminal networks
+      assortativity_obs <- function(g){
+        
+        # required packages
+        require("statnet"); require("igraph"); require("intergraph")
+        
+        # degree assortativity
+        coef <- igraph::assortativity_degree(
+          intergraph::asIgraph(g),
+          directed = FALSE
+        )
+        
+        # return
+        return(coef)
+      }
+      degcor_siren <- assortativity_obs(g_siren)
+      degcor_togo <- assortativity_obs(g_togo)
+      degcor_caviar <- assortativity_obs(g_caviar)
+      degcor_cielnet <- assortativity_obs(g_cielnet)
+      degcor_cocaine <- assortativity_obs(g_cocaine)
+      degcor_heroin <- assortativity_obs(g_heroin)
+      degcor_oversize <- assortativity_obs(g_oversize)
+      degcor_montagna <- assortativity_obs(g_montagna)
+      
+      
+      
+      # distribution of degree assortativity coefficients from the simulations
+      assortativity_sim <- function(simulations){
+        
+        # required packages
+        require("statnet"); require("igraph"); require("intergraph")
+        
+        # number of simulations
+        samples <- length(simulations)
+        
+        # store results in list
+        results <- c()
+        
+        # loop for the simulations
+        for(i in 1:samples){
+          
+          # calculate the degree assortativity coefficient for each of the simulations
+          coef <- igraph::assortativity_degree(
+            intergraph::asIgraph(simulations[[i]]),
+            directed = FALSE
+          )
+          
+          # store the degree assortativity coefficients in the results vector
+          results <- c(results, coef)
+        }
+        results <- as.data.frame(results)
+        colnames(results) <- c("coef")
+        
+        # return
+        return(results)
+      }
+      degcor_siren.sim <- assortativity_sim(g_siren.sim)
+      degcor_togo.sim <- assortativity_sim(g_togo.sim)
+      degcor_caviar.sim <- assortativity_sim(g_caviar.sim)
+      degcor_cielnet.sim <- assortativity_sim(g_cielnet.sim)
+      degcor_cocaine.sim <- assortativity_sim(g_cocaine.sim)
+      degcor_heroin.sim <- assortativity_sim(g_heroin.sim)
+      degcor_oversize.sim <- assortativity_sim(g_oversize.sim)
+      degcor_montagna.sim <- assortativity_sim(g_montagna.sim)
+      
+      
+      
+      # figure 4. plot histogram of the degree assortativity coefficients for the real and simulated graphs
+      plot_assortativity <- function(obs, sim, title){
+        
+        # required packages
+        require('ggplot2'); require('scales'); library('ggplot2')
+        
+        # mean and standard deviation of the latent space models
+        mu <- mean(sim$coef); sd <- sd(sim$coef)
+        
+        # compute z-score
+        z <- (obs - mu)/sd
+        
+        # two-tailed significance test
+        p <- 2 * (1 - stats::pnorm(abs(z)))
+        
+        # flag statistical significance
+        sig <- if (p < 0.001) {"***"} 
+        else{
+          if (p < 0.1) {"**"}
+          else{
+            if (p < 0.5){"*"}
+            else{
+              # unicode
+              # "\u2099\u00B7\u209B\u00B7"
+              " n.s."
+            }
+          }
+        }
+        
+        # label to annotate the mean coefficient of the simulated networks
+        label1 <- mean(sim$coef); label1 <- round(label1, digits = 2)
+        
+        # label to annotate the coefficient for the criminal networks
+        label2 <- round(obs, digits = 2)
+        
+        # distribution of correlation coefficients
+        histogram <- ggplot2::ggplot(sim, ggplot2::aes( x = coef ) ) + 
+          # ggplot2::geom_histogram(ggplot2::aes(y = stat(density)), bins = 25, color = "black", fill = "white") +
+          ggplot2::geom_histogram(bins = 20, color = "black", fill = "white") +
+          # line markers for the clustering coefficients
+          ggplot2::geom_vline(ggplot2::aes(xintercept = mean(coef)), color = "skyblue2", linewidth = 1, linetype = "dashed") +
+          ggplot2::geom_vline(ggplot2::aes(xintercept = obs), colour = "firebrick1", linewidth = 1, linetype = "dashed") +
+          # annotation for the mean clustering coefficient for the random networks
+          ggplot2::annotate(geom = "label", x = label1 - 0.02, y = 0.35, label = sprintf('%0.2f', label1), size = 2) +
+          # annotation for the clustering coefficient for the actual networks
+          ggplot2::annotate(geom = "label", x = label2 + 0.02, y = 0.30, label = paste0(sprintf('%0.2f', label2), sig), size = 2) +
+          # transform y-axis to percentage scale
+          ggplot2::aes(y = after_stat(count)/sum(after_stat(count))) + 
+          ggplot2::scale_y_continuous(
+            name = "PROBABILITY DENSITY FUNCTION (PDF)", 
+            labels = scales::percent_format(accuracy = 1L), # 2L to round to one decimal place, 3L to round to two decimal places, etc.
+            limits = c(0.00, 0.40), 
+            breaks = c(0.00, 0.10, 0.20, 0.30, 0.40)
+          ) +
+          # ggplot2::scale_x_continuous(
+          # name = "CLUSTERING COEFFICIENT",
+          # labels = scales::label_number(accuracy = 0.01),
+          # limits = c(-0.001, 1.00),
+          # breaks = c(-0.001, 0.00, 0.10, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90, 1.00)
+          # ) +
+          ggplot2::coord_cartesian(xlim = c(-1, 0)) +
+          ggplot2::labs(x = "DEGREE ASSORTATIVITY COEFFICIENT") +
+          ggplot2::ggtitle(title) +
+          ggthemes::theme_few() +
+          ggplot2::theme(
+            plot.title = ggplot2::element_text(size = 5, face = "plain"),
+            axis.text.x = ggplot2::element_text(color = "black", size = 5, hjust = 0.5, vjust = 0.5, face = "plain"),
+            axis.text.y = ggplot2::element_text(color = "black", size = 5, hjust = 1.0, vjust = 0.0, face = "plain"),  
+            axis.title.x = ggplot2::element_text(color = "black", size = 5, hjust = 0.5, vjust = 0.0, face = "plain"),
+            axis.title.y = ggplot2::element_text(color = "black", size = 5, hjust = 0.5, vjust = 0.5, face = "plain")
+          )
+        plot(histogram)
+        return(histogram)
+      }
+      assortativity_siren <- plot_assortativity(
+        obs = degcor_siren,
+        sim = degcor_siren.sim, 
+        title = "(A) SIREN AUTO THEFT RING"
+      )
+      assortativity_togo <- plot_assortativity(
+        obs = degcor_togo, 
+        sim = degcor_togo.sim, 
+        title = "(B) TOGO AUTO THEFT RING"
+      )
+      assortativity_caviar <- plot_assortativity(
+        obs = degcor_caviar, 
+        sim = degcor_caviar.sim, 
+        title = "(C) CAVIAR DRUG TRAFFICKING ORGANIZATION"
+      )
+      assortativity_cielnet <- plot_assortativity(
+        obs = degcor_cielnet, 
+        sim = degcor_cielnet.sim, 
+        title = "(D) CIELNET DRUG TRAFFICKING ORGANIZATION"
+      )
+      assortativity_cocaine <- plot_assortativity(
+        obs = degcor_cocaine, 
+        sim = degcor_cocaine.sim, 
+        title = "(E) LA COSA NOSTRA COCAINE TRAFFICKING OUTFIT"
+      )
+      assortativity_heroin <- plot_assortativity(
+        obs = degcor_heroin, 
+        sim = degcor_heroin.sim, 
+        title = "(F) NEW YORK CITY HEROIN TRAFFICKERS"
+      )
+      assortativity_oversize <- plot_assortativity(
+        obs = degcor_oversize, 
+        sim = degcor_oversize.sim, 
+        title = "(G) 'NDRANGHETA WIRETAPS - OPERATION OVERSIZE"
+      )
+      assortativity_montagna <- plot_assortativity(
+        obs = degcor_montagna, 
+        sim = degcor_montagna.sim, 
+        title = "(H) COSA NOSTRA WIRETAPS - OPERATION MONTAGNA"
+      )
+      
+      
+      
+      # output high resolution images
+      output <- function(plot, filename){
+        ggplot2::ggsave(
+          filename,
+          plot,
+          path = "~/Desktop/super/", 
+          width = 2.5, 
+          height = 2, 
+          device = 'pdf', 
+          dpi = 700
+        )
+      }
+      output(plot = assortativity_siren, filename = "fig4a.pdf")
+      output(plot = assortativity_togo, filename = "fig4b.pdf")
+      output(plot = assortativity_caviar, filename = "fig4c.pdf")
+      output(plot = assortativity_cielnet, filename = "fig4d.pdf")
+      output(plot = assortativity_cocaine, filename = "fig4e.pdf")
+      output(plot = assortativity_heroin, filename = "fig4f.pdf")
+      output(plot = assortativity_oversize, filename = "fig4g.pdf")
+      output(plot = assortativity_montagna, filename = "fig4h.pdf")
+      
+      
+      
+      # close .r script
+      
+      xmins = min(d),
+      no_of_sims = n, 
+      threads = 4, 
+      seed = 16052024
+    )
+  } else {
+    p <- poweRlaw::bootstrap_p(
+      ccdf,
+      # xmins = seq(min(d), max(d), 1),
+      xmins = ccdf$xmin,
+      no_of_sims = n, 
+      threads = 4, 
+      seed = 16052024
+    )
+  }
+  
+  # return model fit
+  fit <- list(ccdf, ci, p)
+  return(fit)
+}
+# log normal curve
+mle_siren.mu <- mle(g_siren, model = poweRlaw::dislnorm, n = 10000)
+mle_togo.mu  <- mle(g_togo, model = poweRlaw::dislnorm, n = 10000)
+mle_caviar.mu <- mle(g_caviar, model = poweRlaw::dislnorm, n = 10000)
+mle_cielnet.mu <- mle(g_cielnet, model = poweRlaw::dislnorm, n = 10000)
+mle_cocaine.mu <- mle(g_cocaine, model = poweRlaw::dislnorm, n = 10000)
+mle_heroin.mu <- mle(g_heroin, model = poweRlaw::dislnorm, n = 10000)
+mle_oversize.mu <- mle(g_oversize, model = poweRlaw::dislnorm, n = 10000)
+mle_montagna.mu <- mle(g_montagna, model = poweRlaw::dislnorm, n = 10000)
+
+# power law distribution
+mle_siren.pl <- mle(g_siren, model = poweRlaw::displ, n = 10000)
+mle_togo.pl  <- mle(g_togo, model = poweRlaw::displ, n = 10000)
+mle_caviar.pl <- mle(g_caviar, model = poweRlaw::displ, n = 10000)
+mle_cielnet.pl <- mle(g_cielnet, model = poweRlaw::displ, n = 10000)
+mle_cocaine.pl <- mle(g_cocaine, model = poweRlaw::displ, n = 10000)
+mle_heroin.pl <- mle(g_heroin, model = poweRlaw::displ, n = 10000)
+mle_oversize.pl <- mle(g_oversize, model = poweRlaw::displ, n = 10000)
+mle_montagna.pl <- mle(g_montagna, model = poweRlaw::displ, n = 10000)
+
+# exponential curve
+mle_siren.lambda <- mle(g_siren, model = poweRlaw::disexp, n = 10000)
+mle_togo.lambda  <- mle(g_togo, model = poweRlaw::disexp, n = 10000)
+mle_caviar.lambda <- mle(g_caviar, model = poweRlaw::disexp, n = 10000)
+mle_cielnet.lambda <- mle(g_cielnet, model = poweRlaw::disexp, n = 10000)
+mle_cocaine.lambda <- mle(g_cocaine, model = poweRlaw::disexp, n = 10000)
+mle_heroin.lambda <- mle(g_heroin, model = poweRlaw::disexp, n = 10000)
+mle_oversize.lambda <- mle(g_oversize, model = poweRlaw::disexp, n = 10000)
+mle_montagna.lambda <- mle(g_montagna, model = poweRlaw::disexp, n = 10000)
 
 
 
+# estimate the shape of the simulated degree distribution from the log-normal model
+
+# loop through networks and extract fitted mean log and sd log for each
+fit_mle <- function(simulations){
+  
+  fit <- lapply(simulations, function(g) {
+  d <- sna::degree(g, gmode = "graph", cmode = "freeman", rescale = FALSE)
+  d <- d[d > 0]  # optional: remove zeros to avoid issues
+  
+  # fit the log-normal model
+  model <- poweRlaw::dislnorm$new(d)
+  model$setXmin(min(d))  # set cut-off point manually for all degree k
+  result <- poweRlaw::estimate_pars(model)
+  
+  # return vector of parameters
+  return(result$pars)
+  })
+  # data frame
+  results <- as.data.frame(do.call(rbind, fit))
+  names(results) <- c("meanlog", "sdlog")
+  return(results)
+}
+line_siren.sim <- fit_mle(g_siren.sim)
+line_togo.sim <- fit_mle(g_togo.sim)
+line_caviar.sim <- fit_mle(g_caviar.sim)
+line_cielnet.sim <- fit_mle(g_cielnet.sim)
+line_cocaine.sim <- fit_mle(g_cocaine.sim)
+line_heroin.sim <- fit_mle(g_heroin.sim)
+line_oversize.sim <- fit_mle(g_oversize.sim)
+line_montagna.sim <- fit_mle(g_montagna.sim)
 
 
 
-# construct the boxplot
-fig_meta <- ggplot2::ggplot(meta_results2, aes(x = effect, y = mean)) +
-  # horizontal line to marker where y = 0
-  ggplot2::geom_hline(yintercept = 0.00, color = "red", linetype = "dashed", size = 1, alpha = 0.8) +
-  # error bars to visualize the confidence intervals
-  ggplot2::geom_errorbar(aes(ymin = ci.lo, ymax = ci.hi), width = 0.2, color = "black") +
-  # data points
-  ggplot2::geom_jitter(
-    data = posteriors_bergm, 
-    mapping = ggplot2::aes(x = parameters, y = mean), 
-    width = 0.2, 
-    size = 2, 
-    shape = 21, # circles
-    color = "black",
-    fill = "white",
-    alpha = 1.0
-  ) +
-  # boxplot
-  ggplot2::geom_boxplot(
-    ggplot2::aes(lower = Q1, upper = Q3, middle = mean, ymin = ci.lo, ymax = ci.hi), 
-    stat = "identity",
-    fill = "lightgrey", color = "black", width = 0.5, alpha = 1.0
-  ) +
-  # don't run
-  # circle points for the mean
-  # ggplot2::geom_point(size = 3, color = "black") +
-  ggplot2::scale_y_continuous(limits = c(-6, 2), breaks = seq(-6, 2, 1), labels = scaleFUN) +
-  ggplot2::labs(
-    # title = "NETWORK META-ANALYSIS",
-    x = "MODEL PARAMETERS",
-    y = "WEIGHTED POSTERIOR ESTIMATES"
-  ) +
-  ggthemes::theme_base() +
-  ggplot2::theme(
-    legend.position = "none",
-    axis.text.x = ggplot2::element_text(angle = 45, vjust = 0.5, hjust = 0.5, size = 8),
-    axis.title.x = ggplot2::element_text(size = 10, face = "plain"),
-    axis.text.y = ggplot2::element_text(angle =  0, vjust = 0.5, hjust = 0.5, size = 8),
-    axis.title.y = ggplot2::element_text(size = 10, face = "plain")
-  ) +
-  # markers that indicate statistical significance
-  ggplot2::geom_text(
-    data = meta_results, 
-    ggplot2::aes(x = effect, y = 1.9, label = p.signif), 
+# calculate ccdf for each fitted log-normal
+ccdf_fit <- function(g, simulations){
+  
+  # get the max for the degree distribution
+  d <- sna::degree(g, gmode = "graph", cmode = "freeman")
+  k <- 1:max(d)
+    
+  # cumulative distribution function
+  ccdf <- apply(simulations, 1, function(stats) {
+    1 - stats::plnorm(k, meanlog = stats[1], sdlog = stats[2])
+    })
+  # return results
+  return(list(ccdf = ccdf, k = k))
+}
+line_siren.sim <- ccdf_fit(g = g_siren, simulations = line_siren.sim)
+line_togo.sim <- ccdf_fit(g = g_togo, simulations = line_togo.sim)
+line_caviar.sim <- ccdf_fit(g = g_caviar, simulations = line_caviar.sim)
+line_cielnet.sim <- ccdf_fit(g = g_cielnet, simulations = line_cielnet.sim)
+line_cocaine.sim <- ccdf_fit(g = g_cocaine, simulations = line_cocaine.sim)
+line_heroin.sim <- ccdf_fit(g = g_heroin, simulations = line_heroin.sim)
+line_oversize.sim <- ccdf_fit(g = g_oversize, simulations = line_oversize.sim)
+line_montagna.sim <- ccdf_fit(g = g_montagna, simulations = line_montagna.sim)
+
+
+
+# data points
+summarize <- function(simulations){
+  ccdf <- simulations$ccdf
+  k <- simulations$k
+  data <- data.frame(
+    k = k,
+    median = apply(ccdf, 1, stats::quantile, probs = 0.500, na.rm = TRUE),
+    lower  = apply(ccdf, 1, stats::quantile, probs = 0.025, na.rm = TRUE),
+    upper  = apply(ccdf, 1, stats::quantile, probs = 0.975, na.rm = TRUE)
+    )
+  return(data)
+}
+line_siren.sim <- summarize(line_siren.sim)
+line_togo.sim <- summarize(line_togo.sim)
+line_caviar.sim <- summarize(line_caviar.sim)
+line_cielnet.sim <- summarize(line_cielnet.sim)
+line_cocaine.sim <- summarize(line_cocaine.sim)
+line_heroin.sim <- summarize(line_heroin.sim)
+line_oversize.sim <- summarize(line_oversize.sim)
+line_montagna.sim <- summarize(line_montagna.sim)
+
+
+
+# plot the degree distribution for each of the criminal networks
+mle_plot <- function(model){
+  plot <- plot(model, draw = F)
+}
+plot_siren <- mle_plot(mle_siren.mu[[1]])
+plot_togo <- mle_plot(mle_togo.mu[[1]])
+plot_caviar <- mle_plot(mle_caviar.mu[[1]])
+plot_cielnet <- mle_plot(mle_cielnet.mu[[1]])
+plot_cocaine <- mle_plot(mle_cocaine.mu[[1]])
+plot_heroin <- mle_plot(mle_heroin.mu[[1]])
+plot_oversize <- mle_plot(mle_oversize.mu[[1]])
+plot_montagna <- mle_plot(mle_montagna.mu[[1]])
+
+
+
+# plot the maximum likelihood estimates for each of the different models
+mle_line <- function(model){
+  line <- lines(model, draw = F)
+}
+# log normal curve
+line_siren.mu <- mle_line(mle_siren.mu[[1]])
+line_togo.mu <- mle_line(mle_togo.mu[[1]])
+line_caviar.mu <- mle_line(mle_caviar.mu[[1]])
+line_cielnet.mu <- mle_line(mle_cielnet.mu[[1]])
+line_cocaine.mu <- mle_line(mle_cocaine.mu[[1]])
+line_heroin.mu <- mle_line(mle_heroin.mu[[1]])
+line_oversize.mu <- mle_line(mle_oversize.mu[[1]])
+line_montagna.mu <- mle_line(mle_montagna.mu[[1]])
+
+
+
+# power law distribution
+line_siren.pl <- mle_line(mle_siren.pl[[1]])
+line_togo.pl <- mle_line(mle_togo.pl[[1]])
+line_caviar.pl <- mle_line(mle_caviar.pl[[1]])
+line_cielnet.pl <- mle_line(mle_cielnet.pl[[1]])
+line_cocaine.pl <- mle_line(mle_cocaine.pl[[1]])
+line_heroin.pl <- mle_line(mle_heroin.pl[[1]])
+line_oversize.pl <- mle_line(mle_oversize.pl[[1]])
+line_montagna.pl <- mle_line(mle_montagna.pl[[1]])
+
+
+
+# exponential curve
+line_siren.lambda <- mle_line(mle_siren.lambda[[1]])
+line_togo.lambda <- mle_line(mle_togo.lambda[[1]])
+line_caviar.lambda <- mle_line(mle_caviar.lambda[[1]])
+line_cielnet.lambda <- mle_line(mle_cielnet.lambda[[1]])
+line_cocaine.lambda <- mle_line(mle_cocaine.lambda[[1]])
+line_heroin.lambda <- mle_line(mle_heroin.lambda[[1]])
+line_oversize.lambda <- mle_line(mle_oversize.lambda[[1]])
+line_montagna.lambda <- mle_line(mle_montagna.lambda[[1]])
+
+
+
+# plot the log normal curves for each of the criminal networks estimated from the model ------------------------------------------------------------------------------
+ccdf_plot <- function(plot, line1, line2, sims, title){
+  require("ggplot2"); require("scales"); require("ggthemes")
+  # tutorial on how to plot poweRlaw() objects with ggplot2
+  # https://rpubs.com/lgadar/power-law
+  ccdf <- ggplot2::ggplot(plot) + 
+  ggplot2::geom_point(
+    ggplot2::aes(x = x, y = y), 
+    shape = 21, 
     size = 3, 
     color = "black", 
-    vjust = 0
-  )
-
-
-
-# boxplot of the average posterior estimates across the models
-ggplot2::ggplot(posteriors_bergm, ggplot2::aes(x = parameters, y = mean, fill = "white")) +
-  ggplot2::geom_boxplot(color = "black", alpha = 0.7) +
-  ggplot2::geom_jitter(width = 0.2, size = 2, color = "black", fill = "white", alpha = 0.9) +
-  ggplot2::scale_y_continuous(limits = c(-5, 5), breaks = seq(-5, 5, 1)) +
+    fill = "white"
+    ) +
+  # fitted power law
+  ggplot2::geom_line(
+    data = line2, 
+    ggplot2::aes(x = x, y = y), 
+    color = "grey80", 
+    linetype = "solid", 
+    linewidth = 1, 
+    alpha = 0.50
+    ) +
+  # fitted log-normal distribution
+  ggplot2::geom_line(
+    data = line1, 
+    ggplot2::aes(x = x, y = y), 
+    color = "firebrick1", 
+    linetype = "solid", 
+    linewidth = 1, 
+    alpha = 1.00
+    ) +
+  # fitted log-normal distribution (simulations)
+  ggplot2::geom_ribbon(
+      data = sims, 
+      ggplot2::aes(x = k, ymin = lower, ymax = upper), 
+      fill = "skyblue1", 
+      alpha = 0.5
+      ) +
+  ggplot2::geom_line(
+    data = sims,
+    ggplot2::aes(x = k, y = median), 
+    color = "skyblue1", 
+    linewidth = 1,
+    alpha = 1.00
+    ) +
+    # tutorial to add log scales and tick marks
+    # https://www.datanovia.com/en/blog/ggplot-log-scale-transformation/
+    # ggplot2::scale_x_log10(breaks = scales::trans_breaks("log10", function(x) 10^x), labels = scales::trans_format("log10", math_format(10^.x))) +
+    # ggplot2::scale_y_log10(breaks = scales::trans_breaks("log10", function(x) 10^x), labels = scales::trans_format("log10", math_format(10^.x))) +
+  ggplot2::scale_x_log10(limits = c(1, 30)) +
+  ggplot2::scale_y_log10(limits = c(0.01, 1.00)) +
+  ggplot2::annotation_logticks(sides = "trbl") +
   ggplot2::labs(
-    # title = "TITLE",
-    x = NULL,
-    y = "POSTERIOR ESTIMATES"
+    title = title,
+    y = "LOGGED CUMULATIVE DISTRIBUTION FUNCTION (CDF)", 
+    x = "LOGGED DEGREE"
     ) +
-  ggthemes::theme_base() +
-  ggplot2::theme(legend.position = "none")
-
-
-
-
-
-# estimate the model -----------------------------------------------------------
-g_super <- intergraph::asNetwork(igraph::simplify(intergraph::asIgraph(g_super)))
-bayes_09.super <- bayes(
-  y = g_super,
-  x = g_super ~ edges + 
-    gwdegree(decay = 1.0, fixed = TRUE) +
-    gwdsp(decay = 2.0, fixed = TRUE) +
-    gwesp(decay = 2.0, fixed = TRUE) +
-    degcor + 
-    nodematch("group")
+  ggthemes::theme_few() +
+  ggplot2::theme(
+    plot.title = ggplot2::element_text(size = 5, hjust = 0.5, face = "plain", color = "black"),
+    axis.title = ggplot2::element_text(color = "black", size = 5, face = "plain"),
+    axis.text.x = ggplot2::element_text(color = "black", size = 5, hjust = 0.5, vjust = 0.5, face = "plain"),
+    axis.text.y = ggplot2::element_text(color = "black", size = 5, hjust = 1.0, vjust = 0.0, face = "plain"),  
+    axis.title.x = ggplot2::element_text(color = "black", size = 5, hjust = 0.5, vjust = 0.0, face = "plain"),
+    axis.title.y = ggplot2::element_text(color = "black", size = 5, hjust = 0.5, vjust = 0.5, face = "plain")
     )
-summary(bayes_09.super)
-
-# hypothesis test
-BF(bayes_09.super, priors = c(1/3, 1/3, 1/3))
-
-# goodness-of-fit
-gof_09.super <- GOF(bayes_09.super)
-
-
-# estimate the model -----------------------------------------------------------
-# note: can't estimate degree assortativity i.e., 'degcor' in the subgraph estimates
-bayes_10.super <- bayes(
-  y = g_super,
-  x = g_super ~ edges + 
-    gwdegree(decay = 0.1, fixed = TRUE) +
-    gwdsp(decay = 0.1, fixed = TRUE) +
-    gwesp(decay = 1.0, fixed = TRUE) +
-    degcor +
-  # subgraph estimates for different 'groups' of the super network -------------
-  # siren auto theft ring
-  S(~edges + 
-      gwdegree(decay = 3.0, fixed = TRUE) + 
-      gwdsp(decay = 3.0, fixed = TRUE)    + 
-      gwesp(decay = 3.0, fixed = TRUE)    ,
-    ~(group == c("siren")
-    )
-  ) +
-  # togo auto theft ring
-  S(~edges + 
-      gwdegree(decay = 0.5, fixed = TRUE) + 
-      gwdsp(decay = 3.0, fixed = TRUE)    + 
-      gwesp(decay = 3.0, fixed = TRUE)    ,
-    ~(group == c("togo")
-    )
-  # caviar drug trafficking organization
-  ) +
-  S(~edges + 
-      gwdegree(decay = 2.0, fixed = TRUE) + 
-      gwdsp(decay = 1.0, fixed = TRUE)    + 
-      gwesp(decay = 2.0, fixed = TRUE)    ,
-    ~(group == c("caviar")
-    )
-  ) +
-  # cielnet drug trafficking organization
-  S(~edges + 
-      gwdegree(decay = 1.0, fixed = TRUE) + 
-      gwdsp(decay = 0.2, fixed = TRUE)    + 
-      gwesp(decay = 0.2, fixed = TRUE)    ,
-    ~(group == c("cielnet")
-    )
-  ) +
-  # La Cosa Nostra cocaine trafficking outfit
-  S(~edges + 
-      gwdegree(decay = 1.5, fixed = TRUE) + 
-      gwdsp(decay = 0.5, fixed = TRUE)    + 
-      gwesp(decay = 0.5, fixed = TRUE)    ,
-    ~(group == c("cocaine")
-     )
-    ) +
-  # New York City heroin traffickers
-  S(~edges + 
-      gwdegree(decay = 2.5, fixed = TRUE) + 
-      gwdsp(decay = 1.5, fixed = TRUE)    + 
-      gwesp(decay = 0.5, fixed = TRUE)    ,
-    ~(group == c("heroin")
-      )
-    ) +
-  # 'Ndrangheta wiretap records -- operation oversize
-  S(~edges + 
-      gwdegree(decay = 1.5, fixed = TRUE) + 
-      gwdsp(decay = 1.5, fixed = TRUE)    + 
-      gwesp(decay = 0.5, fixed = TRUE)    ,
-    ~(group == c("oversize")
-      )
-    ) +
-  # Cosa Nostra wiretap records -- operation montagna 
-  S(~edges + 
-      gwdegree(decay = 2.0, fixed = TRUE) + 
-      gwdsp(decay = 2.0, fixed = TRUE)    + 
-      gwesp(decay = 2.0, fixed = TRUE)    ,
-    ~(group == c("montagna")
-    )
-  ) +
-  # the french connection - federal bureau of narcotics
-  S(~edges + 
-      gwdegree(decay = 2.0, fixed = TRUE) + 
-      gwdsp(decay = 2.0, fixed = TRUE)    + 
-      gwesp(decay = 2.0, fixed = TRUE)    ,
-    ~(group == c("tfc")
-    )
+  print(ccdf)
+  return(ccdf)
+}
+ccdf_siren <- ccdf_plot(
+  plot = plot_siren, 
+  line1 = line_siren.mu,
+  line2 = line_siren.pl,
+  sims = line_siren.sim,
+  title = "(A) SIREN AUTO THEFT RING"
   )
-)
-summary(bayes_10.super)
-
-# goodness-of-fit
-gof_10.super <- GOF(bayes_10.super)
-
-
-
-# construct results table from the posterior estimates
-thetas <- bayes_10.super$Theta # posterior estimates
-colnames(thetas) <- c( # parameter labels
-  "edges",
-  "gwdegree 0.1",
-  "gwdsp 0.1",
-  "gwesp 1.0",
-  "degcor",
-  "edges - siren",
-  "gwdegree 3.0 - siren",
-  "gwdsp 3.0 - siren",
-  "gwesp 3.0 - siren",
-  "edges - togo",
-  "gwdegree 0.5 - togo",
-  "gwdsp 3.0 - togo",
-  "gwesp 3.0 - togo",
-  "edges - caviar",
-  "gwdegree 2.0 - caviar",
-  "gwdsp 1.0 - caviar",
-  "gwesp 2.0 - caviar",
-  "edges - cielnet",
-  "gwdegree 1.0 - cielnet",
-  "gwdsp 0.2 - cielnet",
-  "gwesp 0.2 - cielnet",
-  "edges - cocaine",
-  "gwdegree 1.5 - cocaine",
-  "gwdsp 0.5 - cocaine",
-  "gwesp 0.5 - cocaine",
-  "edges - heroin",
-  "gwdegree 2.5 - heroin",
-  "gwdsp 1.5 - heroin",
-  "gwesp 0.5 - heroin",
-  "edges - oversize",
-  "gwdegree 1.5 - oversize",
-  "gwdsp 1.5 - oversize",
-  "gwesp 0.5 - oversize",
-  "edges - montagna",
-  "gwdegree 2.0 - montagna",
-  "gwdsp 2.0 - montagna",
-  "gwesp 2.0 - montagna"
+ccdf_togo <- ccdf_plot(
+  plot = plot_togo, 
+  line1 = line_togo.mu,
+  line2 = line_togo.pl,
+  sims = line_togo.sim,
+  title = "(B) TOGO AUTO THEFT RING"
+  )
+ccdf_caviar <- ccdf_plot(
+  plot = plot_caviar, 
+  line1 = line_caviar.mu,
+  line2 = line_caviar.pl,
+  sims = line_caviar.sim,
+  title = "(C) CAVAIR DRUG TRAFFICKING ORGANIZATION"
+  )
+ccdf_cielnet <- ccdf_plot(
+  plot = plot_cielnet, 
+  line1 = line_cielnet.mu, 
+  line2 = line_cielnet.pl,
+  sims = line_cielnet.sim,
+  title = "(D) CIEL DRUG COCAINE TRAFFICKING ORGANIZATION"
+  )
+ccdf_cocaine <- ccdf_plot(
+  plot = plot_cocaine, 
+  line1 = line_cocaine.mu,
+  line2 = line_cocaine.pl,
+  sims = line_cocaine.sim,
+  title = "(E) CARTEL SATELLITE COCAINE TRAFFICKERS"
+  )
+ccdf_heroin <- ccdf_plot(
+  plot = plot_heroin, 
+  line1 = line_heroin.mu,
+  line2 = line_heroin.pl,
+  sims = line_heroin.sim,
+  title = "(F) LA COSA NOSTRA HEROIN TRAFFICKING OUTFIT"
+  )
+ccdf_oversize <- ccdf_plot(
+  plot = plot_oversize, 
+  line1 = line_oversize.mu,
+  line2 = line_oversize.pl,
+  sims = line_oversize.sim,
+  title = "(G) 'NDRANGHETA DRUG TRAFFICKING OPERATION"
+  )
+ccdf_montagna <- ccdf_plot(
+  plot = plot_montagna, 
+  line1 = line_montagna.mu,
+  line2 = line_montagna.pl,
+  sims = line_montagna.sim,
+  title = "(H) COSA NOSTRA BID-RIGGING CONSPIRACY"
   )
 
-# compute means and standard deviations of the postieor estimates
+# output high resolution images
+output <- function(plot, filename){
+  ggplot2::ggsave(
+    filename,
+    plot,
+    path = "~/Desktop/super/", 
+    width = 2.5, 
+    height = 2, 
+    device = 'pdf', 
+    dpi = 700
+  )
+}
+output(plot = ccdf_siren, filename = "figA8a.pdf")
+output(plot = ccdf_togo, filename = "figA8b.pdf")
+output(plot = ccdf_caviar, filename = "figA8c.pdf")
+output(plot = ccdf_cielnet, filename = "figA8d.pdf")
+output(plot = ccdf_cocaine, filename = "figA8e.pdf")
+output(plot = ccdf_heroin, filename = "figA8f.pdf")
+output(plot = ccdf_oversize, filename = "figA8g.pdf")
+output(plot = ccdf_montagna, filename = "figA8h.pdf")
 
-# don't run
-# mean(thetas[, 1]) # estimate for the edges parameter
-# sd(thetas[, 1])
 
-# mean
-thetas_mu <- colMeans(thetas)
 
-# standard deviation
-thetas_sd <- matrixStats::colSds(thetas) # install.packages("matrixStats")
 
-# 
-thetas_table <- cbind(thetas_mu, thetas_sd)
-thetas_table <- as.data.frame(thetas_table)
-thetas_names <- rownames(thetas_table)
-thetas_table <- cbind(thetas_names, thetas_table)
-rownames(thetas_table) <- c()
-colnames(thetas_table) <- c("parameter", "mean", "SD")
 
 # close .r script
 
@@ -853,238 +991,196 @@ colnames(thetas_table) <- c("parameter", "mean", "SD")
 
 
 
-
-
-
+# distribution of degree assortativity coefficients from the simulations
+mle_sim <- function(simulations, model){
   
+  # required packages
+  require("statnet"); require("igraph"); require("intergraph"); require("poweRlaw"); require("sna")
   
+  # number of simulations
+  samples <- length(simulations)
   
+  # store results in list
+  results <- c()
   
-
-  #################################################################################
-
-
-# construct the supergraph as a 'mlergm' object
-g_super <- mlergm::mlnet(
-  network = g_super, 
-  node_memb = network::get.vertex.attribute(g_super, "group")
-)
-# check that graph is of type multi-level network
-mlergm::is.mlnet(g_super)
-# plot the super network
-plot(g_super, arrow.size = 2.5, arrow.gap = 0.025)
-
-
-
-# estimate the model
-model <- mlergm::mlergm(
-  g_super ~ edges + 
-    gwdegree(decay = 1.0, cutoff = 100) + 
-    gwdsp(decay = 1.0) + 
-    gwesp(decay = 1.0),
-  parameterization = 'offset',
-  options = set_options(
-    burnin = 10000,
-    interval = 1000,
-    sample_size = 100000,
-    NR_tol = 1e-04,
-    NR_max_iter = 50,
-    MCMLE_max_iter = 10,
-    do_parallel = TRUE,
-    # NR_step_len = 10
-    adaptive_step_len = TRUE
-  ),
-  verbose = 2, # = 2 prints the full output
-  seed = 123
-)
-summary(model_est)
-
-# goodness-of-fit plots
-model_gof <- mlergm::gof(model)
-plot(
-  gof_res, 
-  cutoff = 15, 
-  pretty_x = TRUE
-)
-
-
-
-
-
-# function to estimate exponential random graph models --------------------------------------------------------------------
-ERGM <- function(g, x){
-  n <- nrow(g)
-  k <- n * 100000 # 100,000 iterations per node
-  b <- ergm::ergm(
-    x, # mdoel specifciation
-    estimate = 'MPLE',
-    control = ergm::control.ergm(
-      main.method = 'MCMLE', # see Snijders & van Duijn (2002) for info on 'Robbins-Monro' method
-      MCMC.burnin = k,   # 'more is better' ... = v x 100,000
-      MCMC.interval = k, # 'more is better' ... = v x 100,000
-      MCMC.prop.weights = 'TNT', # faster convergence when paired with 'MPLE'
-      seed = 20110210 # to replicate ERGM
-    ),
-    verbose = TRUE    # ... for networks with overall low density
-  )
-  print(summary(b))  # print results
-  print(confint(b, level = 0.95)) # 95% confidence intervals
-  return(b) # return ergm object
-}
-# pass model specifciations through function to estimate models 
-model_02.caviar <- ERGM(
-  g = g_caviar,
-  x = g_caviar ~ 
-    edges + 
-    gwdegree(decay = 2.0, fixed = TRUE) +
-    gwdsp(decay = 2.0, fixed = TRUE) +
-    gwesp(decay = 2.0, fixed = TRUE) +
-    degcor
-    )
-# pass model specifciations through function to estimate models 
-model_09.tfc <- ERGM(
-  g = g_tfc,
-  x = g_tfc ~ 
-    edges + 
-    gwdegree(decay = 2.0, fixed = TRUE) +
-    gwdsp(decay = 2.0, fixed = TRUE) +
-    gwesp(decay = 2.0, fixed = TRUE) +
-    degcor
-    )
-
-# spectral goodness-of-fit measure to critique the model fit to the observed data
-# installation guidelines
-# https://github.com/blubin/SpectralGOF/blob/master/instructions/spectralGOFwalkthrough.pdf
-# install.packages("~/Desktop/spectralGOF", repos = NULL, type = "source")
-spectralGOF::SGOF(model_09.tfc, nsim = 100)
-
-
-
-model_02.togo <- ERGM(
-  g = g_siren,
-  x = g_siren ~ 
-    edges + 
-    gwdegree(decay = 3, fixed = TRUE) +
-    gwdsp(decay = 1, fixed = TRUE) +
-    gwesp(decay = 1, fixed = TRUE) +
-    degcor
-)
-
-
-
-# Bayesian exponential random graphs -------------------------------------------
-
-# first, compute Bayesian priors ---------------------------------------------
-
-# function to compute variance-covariance structure
-sigma <- function(b){
-  n <- length(unlist(b))
-  s <- matrix(0:0, nrow = n, ncol = n) # where 'input' = number ERGM parameters 
-  diag(s) <- 1 # set diagonals = 1
-  return(s) # return matrix
-}
-
-# don't run
-# compute vector of the multivariate normal priors outside of function
-# mu_05 <- model_05$coefficients # model parameters
-# sd_05 <- sigma(mu = mu_05) # variance-covariance structure/matrix
-# diag(sd_01) <- coef(summary(rep_01))[, "Std. Error"]
-
-# function to compute vector of the multivariate normal priors
-vcov_ergm <- function(model){
-  b <- model$coefficients
-  vcov <- sigma(b) # embed prior function
-  diag(vcov) <- coef(summary(model))[, "Std. Error"]
-  return(vcov)
-}
-vcov_01.siren <- vcov_ergm(model_01.siren)
-
-
-
-
-
-
-# posterior parameter estimation ---------------------------------------------
-bayes <- function(g, x, npar, p, s){
-  i <- nrow(g) * 2  # burn in iterations to begin the MCMC run 
-  k <-    250  # sample iterations
-  h <-    ergm::nparam(npar) * 2   # chains in the posterior distribution ... approximately twice the ERGM parameters 
-  n <-    h * k   # per Caimo & Friel (2011), auxiliary chain = # chains (h) * sample iterations (k)
-  # load 'bergm' package
-  require('Bergm')
-  set.seed(20110210) # Halle's birthday
-  bayes <- Bergm::bergm(
-    x,              # equation
-    burn.in = i,     # burn ins
-    main.iters = k,  # sample iterations
-    aux.iters = n,   # auxiliary chains 
-    nchains = h,     # essentially the # chains in the posterior distribution
-    prior.mean = p,  # prior means
-    prior.sigma = s, # prior variance/covariance structure
-    gamma = 0.1      # empirically, gamma ranges 0.1 - 1.5, where smaller gamma leads to better acceptance in big graphs
-  )
-  return(bayes)
-}
-
-
-# hierarchical relations by subgraph -----------------------------------------
-S(~nodemix('rank_c'), ~(family_c == c("1_bonanno" )))     +
-  # S(~nodemix('rank_c'), ~(family_c == c("2_decavalcante"))) +
-  S(~nodemix('rank_c'), ~(family_c == c("3_gambino" )))     +
-  S(~nodemix('rank_c'), ~(family_c == c("4_genovese")))     +
-  S(~nodemix('rank_c'), ~(family_c == c("5_lucchese")))     +
-  S(~nodemix('rank_c'), ~(family_c == c("6_profaci" )))     +
-  
-  
-  
-  
-  
-  # function to average the posterior estimates
-  mod_avg <- function(posteriors){
+  # loop for the simulations
+  for(i in 1:samples){
     
-    # required packages
-    require(c("dplyr", "tidyr", "magrittr"))
-    `%>%` <- magrittr::`%>%`
+    # degree distribution for the simulations
+    d <- sna::degree(simulations[[i]], gmode = "graph", cmode = "freeman", rescale = FALSE)
+    d <- d[d != 0] # drop isolates i.e., degree = 0
+    d <- d[order(d, decreasing = FALSE)]
     
-    # calculate weights from the inverse squared variance
-    posteriors$weight <- 1/(posteriors$stderr.ts^2)
+    # fit model to estimate the decay parameter
+    ccdf = model(d)
+    # let the model set the cut-off point for degree k for the power law distribution
+    k <- poweRlaw::estimate_xmin(ccdf)
+    ccdf$setXmin(k)
+    ccdf$setPars(poweRlaw::estimate_pars(ccdf))
     
-    # calculate means of the posterior estimates across models
-    means <- posteriors %>% 
-      dplyr::group_by(parameters) %>%
-      dplyr::summarise(
-        w_mean = sum(weight * mean)/sum(weight),
-        w_var = 1/sum(weight),
-        w_stderr = sqrt(w_var)
-      )
-    print(means)
+    # model parameters
+    slope <- ccdf$pars
     
-    # names of the parameters
-    parameters <- rownames(posteriors)
-    parameters <- c("DYADS", "GWDEGREE", "GWDSP", "GWESP", " ASSORTATIVITY")
-    
-    # join means to dataset
-    posteriors <- cbind(posteriors, means)
-    
-    # join model parameters to dataset
-    posteriors <- cbind(parameters, posteriors)
-    
-    # name columns
-    colnames(posteriors) <- c("parameters", "siren", "togo", "caviar", "cielnet", "cocaine", "heroin", "oversize", "montagna", "means")
-    
-    # reshape wide to long
-    posteriors <- as.data.frame(posteriors)
-    posteriors <- tidyr::pivot_longer(
-      posteriors,
-      cols = -parameters,
-      names_to = "model",
-      values_to = "posterior"
-    )
-    posteriors <- dplyr::filter(posteriors, model != "means")
-    posteriors <- dplyr::mutate(posteriors, posterior = as.numeric(posterior))
-    # return the posteriors
-    return(posteriors)
+    # store the degree assortativity coefficients in the results vector
+    results <- c(results, slope)
   }
-posteriors <- mod_avg(posteriors_bergm)
-
+  results <- as.data.frame(results)
+  colnames(results) <- c("slope")
   
+  # return
+  return(results)
+}
+mle_siren.sim <- mle_sim(g_siren.sim, model = poweRlaw::displ)
+mle_togo.sim <- mle_sim(g_togo.sim, model = poweRlaw::displ)
+mle_caviar.sim <- mle_sim(g_caviar.sim, model = poweRlaw::displ)
+mle_cielnet.sim <- mle_sim(g_cielnet.sim, model = poweRlaw::displ)
+mle_cocaine.sim <- mle_sim(g_cocaine.sim, model = poweRlaw::displ)
+mle_heroin.sim <- mle_sim(g_heroin.sim, model = poweRlaw::displ)
+mle_oversize.sim <- mle_sim(g_oversize.sim, model = poweRlaw::displ)
+mle_montagna.sim <- mle_sim(g_montagna.sim, model = poweRlaw::displ)
+
+
+
+# plot the complementary cumulative distribution function
+plot_ccdf <- function(ln, ci, title, sim){
+  
+  # required packages
+  require("poweRlaw"); require("dplyr"); require("purrr"); require("tidyr"); require("ggplot2"); require("scales"); require("ggthemes")
+  
+  # call pipe to workspace
+  `%>%` <- magrittr::`%>%`
+  
+  # log normal distribution
+  data_ln <- as.data.frame(plot(ln, draw = FALSE))
+  line_ln <- as.data.frame(lines(ln, draw = FALSE))
+  
+  # power law distribution
+  # data_pl <- as.data.frame(plot(pl, draw = FALSE))
+  # line_pl <- as.data.frame(lines(pl, draw = FALSE))
+  
+  # empirical distributions
+  empirical <- dplyr::bind_rows(
+    # data_pl %>% dplyr::mutate(model = "empirical power law"),
+    data_ln %>% dplyr::mutate(model = "empirical log normal")
+  )
+  
+  # fitted distributons from the models
+  fitted <- dplyr::bind_rows(
+    # line_pl %>% dplyr::mutate(model = "fitted power law"),
+    line_ln %>% dplyr::mutate(model = "fitted log normal")
+  )
+  
+  # fitted lines from bootstrap samples
+  data <- ln
+  kmin <- data$getXmin()
+  data <- data$dat
+  samples <- ci
+  samples <- samples$bootstraps
+  
+  # bootstrapped confidence intervals
+  bootstraps <- purrr::map(samples, function(params) {
+    m_tmp <- poweRlaw::dislnorm$new(data)
+    m_tmp$setXmin(kmin)
+    m_tmp$setPars(params)
+    as.data.frame(lines(m_tmp, draw = FALSE))
+  })
+  
+  # join all the bootstrap curves into one data frame
+  curves <- dplyr::bind_rows(bootstraps, .id = "replicate")
+  
+  # summarize confidence intervals across bootstrap samples
+  ci_data <- curves %>%
+    dplyr::group_by(x) %>%
+    dplyr::summarize(
+      ymin = stats::quantile(y, 0.025, na.rm = TRUE),
+      ymax = stats::quantile(y, 0.975, na.rm = TRUE),
+      .groups = "drop"
+    )
+  
+  # simulations
+  sim <- sim; sim <- sim$slope
+  slopes <- stats::quantile(sim, probs = c(0.025, 0.500, 0.975))
+  slope_lo <- slopes[1]
+  slope_mu <- slopes[2]
+  slope_hi <- slopes[3]
+  
+  # power laws
+  k <- seq(data)
+  pl <- data.frame(
+    k = k,
+    y_mu = k^(-slope_mu),
+    y_lo = k^(-slope_lo),
+    y_hi = k^(-slope_hi)
+  )
+  
+  # plot the complementary cumulative distribution function
+  ccdf <- ggplot2::ggplot() +
+    # confidence intervals
+    # ggplot2::geom_ribbon(
+    # data = ci_data, 
+    # ggplot2::aes(x = x, ymin = ymin, ymax = ymax), 
+    # fill = "grey80", 
+    # alpha = 0.5
+    # ) +
+    # empirical ccdf for the degree distribution
+    ggplot2::geom_point(
+      data = empirical, 
+      ggplot2::aes(x = x, y = y),
+      shape = 21,
+      size = 2,
+      color = "black",
+      fill = "white",
+      alpha = 1.0
+    ) +
+    # fitted ccdf from the model
+    ggplot2::geom_line(
+      data = fitted, 
+      ggplot2::aes(x = x, y = y),
+      color = "firebrick1",
+      linetype = "solid",
+      linewidth = 2
+    ) +
+    #
+    ggplot2::geom_ribbon(
+      data = pl, ggplot2::aes(x = k, ymin = y_lo, ymax = y_hi), fill = "grey80", alpha = 0.50) +
+    ggplot2::geom_line(
+      data = pl, ggplot2::aes(x = k, y = y_mu), color = "skyblue1", linewidth = 1.5) +
+    # tutorial to add log scales and tick marks
+    # https://www.datanovia.com/en/blog/ggplot-log-scale-transformation/
+    # ggplot2::scale_x_log10(name = "LOGGED DEGREE", breaks = scales::trans_breaks("log10", function(x) 10^x), labels = scales::trans_format("log10", math_format(10^.x))) +
+    # ggplot2::scale_y_log10(name = "LOGGED CUMULATIVE DISTRIBUTION FUNCTION (CDF)", breaks = scales::trans_breaks("log10", function(x) 10^x), labels = scales::trans_format("log10", math_format(10^.x))) +
+    ggplot2::scale_x_log10() +
+    ggplot2::scale_y_log10() +
+    ggplot2::annotation_logticks(sides = "trbl") +
+    ggplot2::labs(
+      # title = title,
+      # color = "legend"
+      x = "LOGGED DEGREE", # "degree (k)",
+      y = "LOGGED CUMULATIVE DISTRIBUTION FUNCTION (CDF)", # "P(K ≥ k)",
+    ) +
+    ggplot2::ggtitle(title) +
+    
+    ggthemes::theme_base() +
+    ggplot2::theme(
+      plot.title = ggplot2::element_text(size = 10, face = "plain"),
+      axis.text.x = ggplot2::element_text(color = "black", size = 8, hjust = 0.5, vjust = 0.5, face = "plain"),
+      axis.text.y = ggplot2::element_text(color = "black", size = 8, hjust = 1.0, vjust = 0.0, face = "plain"),  
+      axis.title.x = ggplot2::element_text(color = "black", size = 8, hjust = 0.5, vjust = 0.0, face = "plain"),
+      axis.title.y = ggplot2::element_text(color = "black", size = 8, hjust = 0.5, vjust = 0.5, face = "plain")
+    )
+  print(ccdf)
+}
+plot_ccdf(
+  ln = mle_siren.mu[[1]], 
+  ci = mle_siren.mu[[2]], 
+  sim = NULL,
+  title = "(A) SIREN AUTO THEFT ORGANIZATION"
+)
+plot_ccdf(
+  ln = mle_caviar.mu[[1]], 
+  ci = mle_caviar.mu[[2]], 
+  sim = NULL,
+  title = "(C) CAVIAR DRUG TRAFFICKING ORGANIZATION"
+)
+
+

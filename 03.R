@@ -12,7 +12,7 @@
 cdf_degree <- function(g, cmode){
   par(mfrow=c(1,1)) # plot dimensions
   # normalized degree centrality
-  d <- sna::degree(g, gmode = "digraph", cmode = cmode) # degree centrality for each node
+  d <- sna::degree(g, gmode = "graph", cmode = "freeman") # degree centrality for each node
   d <- d/max(d); d <- round(x = d, digits = 2) # scores to range 0-1 and round to two decimal places
   d <- d[order(d, decreasing = TRUE)] # sort from largest to smallest
   # calculate complimentary cumulative distribution function (ccdf)
@@ -24,29 +24,15 @@ cdf_degree <- function(g, cmode){
   # plot the ccdf
   plot(log(data$ndegree), log(data$ccdf))
 }
-# sender 
-cdf_degree(g_siren, cmode = "outdegree")
-cdf_degree(g_togo, cmode = "outdegree")
-cdf_degree(g_caviar, cmode = "outdegree")
-cdf_degree(g_cielnet, cmode = "outdegree")
-cdf_degree(g_cocaine, cmode = "outdegree")
-cdf_degree(g_heroin, cmode = "outdegree")
-cdf_degree(g_oversize, cmode = "outdegree")
-cdf_degree(g_montagna, cmode = "outdegree")
-cdf_degree(g_tfc, cmode = "outdegree")
-cdf_degree(g_super, cmode = "outdegree")
+cdf_degree(g_siren)
+cdf_degree(g_togo)
+cdf_degree(g_caviar)
+cdf_degree(g_cielnet)
+cdf_degree(g_cocaine)
+cdf_degree(g_heroin)
+cdf_degree(g_oversize)
+cdf_degree(g_montagna)
 
-# receiver
-cdf_degree(g_siren, cmode = "indegree")
-cdf_degree(g_togo, cmode = "indegree")
-cdf_degree(g_caviar, cmode = "indegree")
-cdf_degree(g_cielnet, cmode = "indegree")
-cdf_degree(g_cocaine, cmode = "indegree")
-cdf_degree(g_heroin, cmode = "indegree")
-cdf_degree(g_oversize, cmode = "indegree")
-cdf_degree(g_montagna, cmode = "indegree")
-cdf_degree(g_tfc, cmode = "indegree")
-cdf_degree(g_super, cmode = "indegree")
 
 
 # first, estimate the shape of the degree distribution and test it against different statistical distributions
@@ -58,7 +44,7 @@ cdf_degree(g_super, cmode = "indegree")
 
 
 # Vuong's likelihood ratio test for goodness-of-fit for the log normal distribution ----------------------------------------------------------------
-vuong = function(g, cmode, model){
+vuong = function(g, model){
   
   # required packages
   require("poweRlaw"); require("sna")
@@ -76,9 +62,9 @@ vuong = function(g, cmode, model){
   cat("\n") # space
   
   # degree distribution for the criminal networks
-  d <- sna::degree(g, gmode = "digraph", cmode = cmode, rescale = FALSE)
+  d <- sna::degree(g, gmode = "graph", cmode = "freeman", rescale = FALSE)
   d <- d[d!=0] # drop nodes that do not have sender or receiver ties
-  d <- d[order(d, decreasing = TRUE)]
+  d <- d[order(d, decreasing = FALSE)]
   
   # fit log-normal distribution
   y = poweRlaw::dislnorm(d)
@@ -107,8 +93,8 @@ vuong = function(g, cmode, model){
   lrstat = lrtest$test_statistic
   cat("Vuong's likelihood-ratio test statistic = "); cat(lrstat ); cat("\n"); cat("\n")
   
-  # p-value (two-tailed)
-  p = lrtest$p_two_sided
+  # p-value (one-tailed)
+  p = lrtest$p_one_sided # one sided p-values because Broido & Clauset (2019) find that the degree distributions of most social networks resemble log-normal distributions
   # if p < 0.05, reject H0: the degree distribution neither resembles the power law distribution or Poisson distribution
   # if p > 0.05, fail to reject H1: degree distribution resemebles power law distribution or Poisson distribution (see notes on Vuong's likelihood-ratio test)
   cat( "p-value = "); cat(p); cat("\n"); cat("\n")
@@ -116,29 +102,32 @@ vuong = function(g, cmode, model){
   # interpretation:
   if(lrstat > 0){
     message("The degree distribution more closely resembles the log normal distribution.")
-    if(p < 0.05){
+    if(p < 0.10){
       cat("\n")
       message("Reject the null hypothesis that the degree distribution does not resemble the log normal distribution.")
     } else {"Fail to reject the null hypothesis that the degree distribution does not resemble the log normal distribution."}
   } else {
     message("The degree distribution more closely resembles the comparison distribution.")
-    if(p < 0.05){
+    if(p < 0.10){
       cat("\n") 
       message("Reject the null hypothesis that the degree distribution does not resemble the comparison distribution.")
     } else {"Fail to reject the null hypothesis that the degree distribution does not resemble the comparison distribution."}
   }
+  
+  # return results 
+  p <- as.data.frame(p)
+  colnames(p) <- c("p")
+  return(p)
 }
 # compare log normal distribution to the power law distribution
-vuong(g_siren, cmode = "indegree", model = poweRlaw::displ)
-vuong(g_togo, cmode = "indegree", model = poweRlaw::displ)
-vuong(g_caviar, cmode = "indegree", model = poweRlaw::displ)
-vuong(g_cielnet, cmode = "indegree", model = poweRlaw::displ)
-vuong(g_cocaine, cmode = "indegree", model = poweRlaw::displ)
-vuong(g_heroin, cmode = "indegree", model = poweRlaw::displ)
-vuong(g_oversize, cmode = "indegree", model = poweRlaw::displ)
-vuong(g_montagna, cmode = "indegree", model = poweRlaw::displ)
-vuong(g_tfc, cmode = "indegree", model = poweRlaw::displ)
-vuong(g_super, cmode = "indegree", model = poweRlaw::displ)
+vuong_siren <- vuong(g_siren, model = poweRlaw::displ)
+vuong_togo <- vuong(g_togo, model = poweRlaw::displ)
+vuong_caviar <- vuong(g_caviar, model = poweRlaw::displ)
+vuong_cielnet <- vuong(g_cielnet, model = poweRlaw::displ)
+vuong_cocaine <- vuong(g_cocaine, model = poweRlaw::displ)
+vuong_heroin <- vuong(g_heroin, model = poweRlaw::displ)
+vuong_oversize <- vuong(g_oversize, model = poweRlaw::displ)
+vuong_montagna <- vuong(g_montagna, model = poweRlaw::displ)
 
 # compare log normal distribution to the exponential distribution
 vuong(g_siren, model = poweRlaw::disexp)
@@ -149,8 +138,6 @@ vuong(g_cocaine, model = poweRlaw::disexp)
 vuong(g_heroin, model = poweRlaw::disexp)
 vuong(g_oversize, model = poweRlaw::disexp)
 vuong(g_montagna, model = poweRlaw::disexp)
-vuong(g_tfc, model = poweRlaw::disexp)
-vuong(g_super, model = poweRlaw::disexp)
 
 # compare log normal distribution to the Poisson distribution
 vuong(g_siren, model = poweRlaw::dispois)
@@ -161,8 +148,234 @@ vuong(g_cocaine, model = poweRlaw::dispois)
 vuong(g_heroin, model = poweRlaw::dispois)
 vuong(g_oversize, model = poweRlaw::dispois)
 vuong(g_montagna, model = poweRlaw::dispois)
-vuong(g_tfc, model = poweRlaw::dispois)
-vuong(g_super, model = poweRlaw::dispois)
+
+
+
+# Vuong's likelihood ratio test for goodness-of-fit for the log normal distribution ----------------------------------------------------------------
+vuong_simulator = function(simulations, model1, model2){
+  
+  # required packages
+  require("poweRlaw"); require("sna")
+  
+  # number of simulations
+  samples <- length(simulations)
+  
+  # results
+  results <- c()
+  
+  for (i in 1:samples){
+  
+  # degree distribution for the criminal networks
+  d <- sna::degree(simulations[[i]], gmode = "graph", cmode = "freeman", rescale = FALSE)
+  d <- d[d!=0] # drop nodes that do not have sender or receiver ties
+  d <- d[order(d, decreasing = FALSE)]
+  
+  # fit distribution
+  y = model1(d)
+  y$setXmin(min(d)) # for all degree k
+  y$setPars(poweRlaw::estimate_pars(y))
+  
+  # fit comparison distribution
+  x = model2(d)
+  x$setXmin(min(d)) # for all degree k
+  x$setPars(poweRlaw::estimate_pars(x))
+  
+  # Vuong's likelihood-ratio test to compare models
+  lrtest = poweRlaw::compare_distributions(y, x)
+  
+  # Vuong's likelihood-ratio test statistic 
+  lrstat = lrtest$test_statistic
+ 
+  # p-value (one-tailed)
+  p = lrtest$p_one_sided
+  
+  # join p-values to results vector
+  results <- c(results, p)
+  }
+  
+  # return results
+  results <- as.data.frame(results)
+  colnames(results) <- c("p")
+  return(results)
+}
+# compare log normal distribution to the power law distribution
+vuong_siren.sim <- vuong_simulator(simulations = g_siren.sim, model1 = poweRlaw::dislnorm, model2 = poweRlaw::displ)
+vuong_togo.sim <- vuong_simulator(simulations = g_togo.sim, model1 = poweRlaw::dislnorm, model2 = poweRlaw::displ)
+vuong_caviar.sim <- vuong_simulator(simulations = g_caviar.sim, model1 = poweRlaw::dislnorm, model2 = poweRlaw::displ)
+vuong_cielnet.sim <- vuong_simulator(simulations = g_cielnet.sim, model1 = poweRlaw::dislnorm, model2 = poweRlaw::displ)
+vuong_cocaine.sim <- vuong_simulator(simulations = g_cocaine.sim, model1 = poweRlaw::dislnorm, model2 = poweRlaw::displ)
+vuong_heroin.sim <- vuong_simulator(simulations = g_heroin.sim, model1 = poweRlaw::dislnorm, model2 = poweRlaw::displ)
+vuong_oversize.sim <- vuong_simulator(simulations = g_oversize.sim, model1 = poweRlaw::dislnorm, model2 = poweRlaw::displ)
+vuong_montagna.sim <- vuong_simulator(simulations = g_montagna.sim, model1 = poweRlaw::dislnorm, model2 = poweRlaw::displ)
+
+# compare the power law distribution to the log normal distribution
+vuong_siren.sim <- vuong_simulator(simulations = g_siren.sim, model1 = poweRlaw::displ, model2 = poweRlaw::dislnorm)
+vuong_togo.sim <- vuong_simulator(simulations = g_togo.sim, model1 = poweRlaw::displ, model2 = poweRlaw::dislnorm)
+vuong_caviar.sim <- vuong_simulator(simulations = g_caviar.sim, model1 = poweRlaw::displ, model2 = poweRlaw::dislnorm)
+vuong_cielnet.sim <- vuong_simulator(simulations = g_cielnet.sim, model1 = poweRlaw::displ, model2 = poweRlaw::dislnorm)
+vuong_cocaine.sim <- vuong_simulator(simulations = g_cocaine.sim, model1 = poweRlaw::displ, model2 = poweRlaw::dislnorm)
+vuong_heroin.sim <- vuong_simulator(simulations = g_heroin.sim, model1 = poweRlaw::displ, model2 = poweRlaw::dislnorm)
+vuong_oversize.sim <- vuong_simulator(simulations = g_oversize.sim, model1 = poweRlaw::displ, model2 = poweRlaw::dislnorm)
+vuong_montagna.sim <- vuong_simulator(simulations = g_montagna.sim, model1 = poweRlaw::displ, model2 = poweRlaw::dislnorm)
+
+
+
+
+# compare log normal distribution to the exponential distribution
+vuong_siren.sim <- vuong_simulator(simulations = g_siren.sim, model = poweRlaw::disexp)
+vuong_togo.sim <- vuong_simulator(simulations = g_togo.sim, model = poweRlaw::disexp)
+vuong_caviar.sim <- vuong_simulator(simulations = g_caviar.sim, model = poweRlaw::disexp)
+vuong_cielnet.sim <- vuong_simulator(simulations = g_cielnet.sim, model = poweRlaw::disexp)
+vuong_cocaine.sim <- vuong_simulator(simulations = g_cocaine.sim, model = poweRlaw::disexp)
+vuong_heroin.sim <- vuong_simulator(simulations = g_heroin.sim, model = poweRlaw::disexp)
+vuong_oversize.sim <- vuong_simulator(simulations = g_oversize.sim, model = poweRlaw::disexp)
+vuong_montagna.sim <- vuong_simulator(simulations = g_montagna.sim, model = poweRlaw::disexp)
+
+# compare log normal distribution to the Poisson distribution
+vuong_siren.sim <- vuong_simulator(simulations = g_siren.sim, model = poweRlaw::dispois)
+vuong_togo.sim <- vuong_simulator(simulations = g_togo.sim, model = poweRlaw::dispois)
+vuong_caviar.sim <- vuong_simulator(simulations = g_caviar.sim, model = poweRlaw::dispois)
+vuong_cielnet.sim <- vuong_simulator(simulations = g_cielnet.sim, model = poweRlaw::dispois)
+vuong_cocaine.sim <- vuong_simulator(simulations = g_cocaine.sim, model = poweRlaw::dispois)
+vuong_heroin.sim <- vuong_simulator(simulations = g_heroin.sim, model = poweRlaw::dispois)
+vuong_oversize.sim <- vuong_simulator(simulations = g_oversize.sim, model = poweRlaw::dispois)
+vuong_montagna.sim <- vuong_simulator(simulations = g_montagna.sim, model = poweRlaw::dispois)
+
+
+
+
+
+# plot the distribution of p-values from the Vuong likelihood ratio test
+vuong_plot <- function(sim.data, obs.data, title){
+  
+  # required packages
+  require('ggplot2'); require('scales'); library('ggplot2')
+  
+  # label to annotate the p-value for the Vuong test of the actual criminal networks
+  sig <- obs.data
+  sig <- sig$p
+  label <- round(sig, digits = 2)
+  
+  # flag statistical significance
+  sim.data$tail_flag <- sim.data$p < 0.10
+  
+  # p-values for the Vuong test from the networks simulated from the ERGMs
+  histogram <- ggplot2::ggplot(sim.data, ggplot2::aes(x = p)) +
+    ggplot2::geom_histogram(
+      ggplot2::aes(y = ggplot2::after_stat(count)/sum(ggplot2::after_stat(count)), fill = tail_flag),
+      binwidth = 0.05,
+      color = "black",
+      alpha = 0.80
+      ) +
+    # shaded tail for p < 0.10
+    ggplot2::scale_fill_manual(values = c("TRUE" = "skyblue1", "FALSE" = "white"), guide = "none") +
+    # transform y-axis to percentage scale
+    ggplot2::scale_y_continuous(
+      name = "PROBABILITY DENSITY FUNCTION (PDF)", 
+      labels = scales::percent_format(accuracy = 1L), # 2L to round to one decimal place, 3L to round to two decimal places, etc.
+      limits = c(0.00, 1.00), 
+      breaks = seq(0.00, 1.00, by = 0.20)
+      ) +
+    ggplot2::scale_x_continuous(
+      name = expression(italic(P)*"-VALUES"),
+      labels = scales::label_number(accuracy = 0.01),
+      breaks = seq(0.00, 1.00, by = 0.1)
+      ) +
+    ggplot2::coord_cartesian(xlim = c(0.00, 1.00)) +
+    # p-value for the Vuong test from the actual criminal networks
+    ggplot2::geom_vline(
+      data = obs.data, 
+      ggplot2::aes(xintercept = p), 
+      color = "firebrick3", 
+      linetype = "dashed", 
+      linewidth = 1,
+      alpha = 0.80
+      ) +
+    # annotation for the p-value for the actual networks
+    ggplot2::annotate(geom = "label", x = label, y = 0.50, label = sprintf('%0.2f', label), size = 2) +
+    ggthemes::theme_few() +
+    ggplot2::ggtitle(title) +
+    ggplot2::theme(
+      plot.title = ggplot2::element_text(size = 5, face = "plain"),
+      axis.text.x = ggplot2::element_text(color = "black", size = 5, hjust = 0.5, vjust = 0.5, face = "plain"),
+      axis.text.y = ggplot2::element_text(color = "black", size = 5, hjust = 1.0, vjust = 0.0, face = "plain"),  
+      axis.title.x = ggplot2::element_text(color = "black", size = 5, hjust = 0.5, vjust = 0.0, face = "plain"),
+      axis.title.y = ggplot2::element_text(color = "black", size = 5, hjust = 0.5, vjust = 0.5, face = "plain")
+      )
+  plot(histogram)
+  return(histogram)
+}
+
+# output high resolution images
+output <- function(plot, filename){
+  ggplot2::ggsave(
+    filename,
+    plot,
+    path = "~/Desktop/super/", 
+    width = 2.5, 
+    height = 2, 
+    device = 'pdf', 
+    dpi = 700
+    )
+}
+output(vuong_plot(
+  sim.data = vuong_siren.sim, 
+  obs.data = vuong_siren, 
+  title = "(A) SIREN AUTO THEFT RING"
+  ),
+  filename = "figA7a.pdf"
+  )
+output(vuong_plot(
+  sim.data = vuong_togo.sim, 
+  obs.data = vuong_togo, 
+  title = "(B) TOGO AUTO THEFT RING"
+  ),
+  filename = "figA7b.pdf"
+  )
+output(vuong_plot(
+  sim.data = vuong_caviar.sim, 
+  obs.data = vuong_caviar, 
+  title = "(C) CAVIAR DRUG TRAFFICKING ORGANIZATION"
+  ),
+  filename = "figA7c.pdf"
+  )
+output(vuong_plot(
+  sim.data = vuong_cielnet.sim, 
+  obs.data = vuong_cielnet, 
+  title = "(D) CIEL DRUG TRAFFICKING ORGANIZATION"
+  ),
+  filename = "figA7d.pdf"
+  )
+output(vuong_plot(
+  sim.data = vuong_cocaine.sim, 
+  obs.data = vuong_cocaine, 
+  title = "(E) CARTEL SATELLITE COCAINE TRAFFICKERS"
+  ),
+  filename = "figA7e.pdf"
+  )
+output(vuong_plot(
+  sim.data = vuong_heroin.sim, 
+  obs.data = vuong_heroin, 
+  title = "(F) LA COSA NOSTRA HEROIN TRAFFICKING OUTFIT"
+  ),
+  filename = "figA7f.pdf"
+  )
+output(vuong_plot(
+  sim.data = vuong_oversize.sim, 
+  obs.data = vuong_oversize, 
+  title = "(G) 'NDRANGHETA DRUG TRAFFICKING OPERATION" 
+  ),
+  filename = "figA7g.pdf"
+  )
+output(vuong_plot(
+  sim.data = vuong_montagna.sim, 
+  obs.data = vuong_montagna, 
+  title = "(H) COSA NOSTRA BID-RIGGING CONSPIRACY"
+  ),
+  filename = "figA7h.pdf"
+  )
+
+
 
 
 
@@ -174,75 +387,173 @@ mle <- function(g, model, n){
   
   # degree distribution for the criminal networks
   d <- sna::degree(g, gmode = "graph", cmode = "freeman", rescale = FALSE)
-  d <- d[order(d, decreasing = TRUE)]
+  d <- d[order(d, decreasing = FALSE)]
   
-  # fit model to estimate the decay parameter
-  mu = model(d)
-  mu$setXmin(min(d)) # for all degree k
-  mu$setPars(poweRlaw::estimate_pars(mu))
+  # fit model to estimate the shape of the cumulative distribution function
+  ccdf = model(d)
   
-  # bootstrapped confidence intervals for the shape of the distribution
-  ci <- poweRlaw::bootstrap(
-    mu,
-    xmins = min(d),
-    # xmins = seq(1, k, 1),
-    no_of_sims = n,
-    threads = 4,
-    seed = 16052024
+  # if-else statement to set the cut-point for the distribution
+  if (any(class(model) %in% c("dislnorm", "disexp", "dispois"))) {
+    ccdf$setXmin(min(d)) # estimate the model for all degree k > 0
+  } else{
+    # let the model set the cut-off point for degree k for the power law distribution
+    k <- poweRlaw::estimate_xmin(ccdf)
+    ccdf$setXmin(k)
+  }
+  
+  # model parameters
+  ccdf$setPars(poweRlaw::estimate_pars(ccdf))
+  
+  # if-else statement to estimates bootstrapped confidence intervals for the shape of the distribution
+  if (any(class(model) %in% c("dislnorm", "disexp", "dispois"))) {
+    ci <- poweRlaw::bootstrap(
+      ccdf,
+      xmins = min(d),
+      no_of_sims = n,
+      threads = 4,
+      seed = 16052024
     )
-  
-  # p-value for hypothesis test
-  p <- poweRlaw::bootstrap_p(
-    mu,
-    xmins = min(d),
-    # xmins = seq(1, k, 1),
-    no_of_sims = n, 
-    threads = 4, 
-    seed = 16052024
+  } else {
+    ci <- poweRlaw::bootstrap(
+      ccdf,
+      # xmins = seq(min(d), max(d), 1),
+      xmins = ccdf$xmin,
+      no_of_sims = n,
+      threads = 4,
+      seed = 16052024
     )
+  }
+  
+  # if-else statement to calculate the p-values for the hypothesis test
+  if (any(class(model) %in% c("dislnorm", "disexp", "dispois"))) {
+    p <- poweRlaw::bootstrap_p(
+      ccdf,
+      xmins = min(d),
+      no_of_sims = n, 
+      threads = 4, 
+      seed = 16052024
+    )
+  } else {
+    p <- poweRlaw::bootstrap_p(
+      ccdf,
+      # xmins = seq(min(d), max(d), 1),
+      xmins = ccdf$xmin,
+      no_of_sims = n, 
+      threads = 4, 
+      seed = 16052024
+    )
+  }
   
   # return model fit
-  fit <- list(mu, ci, p)
+  fit <- list(ccdf, ci, p)
   return(fit)
 }
 # log normal curve
 mle_siren.mu <- mle(g_siren, model = poweRlaw::dislnorm, n = 10000)
-mle_siren.mu <- mle(g_siren, model = poweRlaw::dislnorm, n = 10000)
 mle_togo.mu  <- mle(g_togo, model = poweRlaw::dislnorm, n = 10000)
 mle_caviar.mu <- mle(g_caviar, model = poweRlaw::dislnorm, n = 10000)
 mle_cielnet.mu <- mle(g_cielnet, model = poweRlaw::dislnorm, n = 10000)
-mle_cocaine.mu <- mle(g_cielnet, model = poweRlaw::dislnorm, n = 10000)
+mle_cocaine.mu <- mle(g_cocaine, model = poweRlaw::dislnorm, n = 10000)
 mle_heroin.mu <- mle(g_heroin, model = poweRlaw::dislnorm, n = 10000)
 mle_oversize.mu <- mle(g_oversize, model = poweRlaw::dislnorm, n = 10000)
 mle_montagna.mu <- mle(g_montagna, model = poweRlaw::dislnorm, n = 10000)
-mle_tfc.mu <- mle(g_tfc, model = poweRlaw::dislnorm, n = 10000)
-mle_super.mu <- mle(g_super, model = poweRlaw::dislnorm, n = 10000)
 
 # power law distribution
-mle_siren.pl <- mle(g_siren, model = poweRlaw::displ, n = 10000)
 mle_siren.pl <- mle(g_siren, model = poweRlaw::displ, n = 10000)
 mle_togo.pl  <- mle(g_togo, model = poweRlaw::displ, n = 10000)
 mle_caviar.pl <- mle(g_caviar, model = poweRlaw::displ, n = 10000)
 mle_cielnet.pl <- mle(g_cielnet, model = poweRlaw::displ, n = 10000)
-mle_cocaine.pl <- mle(g_cielnet, model = poweRlaw::displ, n = 10000)
+mle_cocaine.pl <- mle(g_cocaine, model = poweRlaw::displ, n = 10000)
 mle_heroin.pl <- mle(g_heroin, model = poweRlaw::displ, n = 10000)
 mle_oversize.pl <- mle(g_oversize, model = poweRlaw::displ, n = 10000)
 mle_montagna.pl <- mle(g_montagna, model = poweRlaw::displ, n = 10000)
-mle_tfc.pl <- mle(g_tfc, model = poweRlaw::displ, n = 10000)
-mle_super.pl <- mle(g_super, model = poweRlaw::displ, n = 10000)
 
 # exponential curve
-mle_siren.lambda <- mle(g_siren, model = poweRlaw::disexp, n = 10000)
 mle_siren.lambda <- mle(g_siren, model = poweRlaw::disexp, n = 10000)
 mle_togo.lambda  <- mle(g_togo, model = poweRlaw::disexp, n = 10000)
 mle_caviar.lambda <- mle(g_caviar, model = poweRlaw::disexp, n = 10000)
 mle_cielnet.lambda <- mle(g_cielnet, model = poweRlaw::disexp, n = 10000)
-mle_cocaine.lambda <- mle(g_cielnet, model = poweRlaw::disexp, n = 10000)
+mle_cocaine.lambda <- mle(g_cocaine, model = poweRlaw::disexp, n = 10000)
 mle_heroin.lambda <- mle(g_heroin, model = poweRlaw::disexp, n = 10000)
 mle_oversize.lambda <- mle(g_oversize, model = poweRlaw::disexp, n = 10000)
 mle_montagna.lambda <- mle(g_montagna, model = poweRlaw::disexp, n = 10000)
-mle_tfc.lambda <- mle(g_tfc, model = poweRlaw::disexp, n = 10000)
-mle_super.lambda <- mle(g_super, model = poweRlaw::disexp, n = 10000)
+
+
+
+# estimate the shape of the simulated degree distribution from the log-normal model
+
+# loop through networks and extract fitted mean log and sd log for each
+fit_mle <- function(simulations){
+  
+  fit <- lapply(simulations, function(g) {
+  d <- sna::degree(g, gmode = "graph", cmode = "freeman", rescale = FALSE)
+  d <- d[d > 0]  # optional: remove zeros to avoid issues
+  
+  # fit the log-normal model
+  model <- poweRlaw::dislnorm$new(d)
+  model$setXmin(min(d))  # set cut-off point manually for all degree k
+  result <- poweRlaw::estimate_pars(model)
+  
+  # return vector of parameters
+  return(result$pars)
+  })
+  # data frame
+  results <- as.data.frame(do.call(rbind, fit))
+  names(results) <- c("meanlog", "sdlog")
+  return(results)
+}
+line.siren.sim <- fit_mle(g_siren.sim)
+line.togo.sim <- fit_mle(g_togo.sim)
+line.caviar.sim <- fit_mle(g_caviar.sim)
+line_cielnet.sim <- fit_mle(g_cielnet.sim)
+line_cocaine.sim <- fit_mle(g_cocaine.sim)
+line_heroin.sim <- fit_mle(g_heroin.sim)
+line_oversize.sim <- fit_mle(g_oversize.sim)
+line_montagna.sim <- fit_mle(g_montagna.sim)
+
+
+
+# calculate ccdf for each fitted log-normal
+ccdf_fit <- function(g, simulations){
+  
+  # get the max for the degree distribution
+  d <- sna::degree(g, gmode = "graph", cmode = "freeman")
+  k <- 1:max(d)
+    
+  # cumulative distribution function
+  ccdf <- apply(simulations, 1, function(stats) {
+    1 - stats::plnorm(k, meanlog = stats[1], sdlog = stats[2])
+    })
+  # return results
+  return(list(ccdf = ccdf, k = k))
+}
+line.siren.sim <- ccdf_fit(g = g_siren, simulations = line.siren.sim)
+line.togo.sim <- ccdf_fit(g = g_togo, simulations = line.togo.sim)
+line.caviar.sim <- ccdf_fit(g = g_caviar, simulations = line.caviar.sim)
+line.cielnet.sim <- ccdf_fit(g = g_cielnet, simulations = line.cielnet.sim)
+line.cocaine.sim <- ccdf_fit(g = g_cocaine, simulations = line.cocaine.sim)
+line.heroin.sim <- ccdf_fit(g = g_heroin, simulations = line.heroin.sim)
+line.oversize.sim <- ccdf_fit(g = g_oversize, simulations = line.oversize.sim)
+line.montagna.sim <- ccdf_fit(g = g_montagna, simulations = line.montagna.sim)
+
+
+
+
+# data points
+summarize <- function(simulations){
+  ccdf <- simulations$ccdf
+  k <- simulations$k
+  data <- data.frame(
+    k = k,
+    median = apply(ccdf, 1, stats::quantile, probs = 0.500, na.rm = TRUE),
+    lower  = apply(ccdf, 1, stats::quantile, probs = 0.025, na.rm = TRUE),
+    upper  = apply(ccdf, 1, stats::quantile, probs = 0.975, na.rm = TRUE)
+    )
+  return(data)
+}
+line.siren.sim <- summarize(line.siren.sim)
+
+
 
 
 
@@ -258,8 +569,8 @@ plot_cocaine <- mle_plot(mle_cocaine.mu[[1]])
 plot_heroin <- mle_plot(mle_heroin.mu[[1]])
 plot_oversize <- mle_plot(mle_oversize.mu[[1]])
 plot_montagna <- mle_plot(mle_montagna.mu[[1]])
-plot_tfc <- mle_plot(mle_tfc.mu[[1]])
-plot_super <- mle_plot(mle_super.mu[[1]])
+
+
 
 # plot the maximum likelihood estimates for each of the different models
 mle_line <- function(model){
@@ -274,8 +585,8 @@ line_cocaine.mu <- mle_line(mle_cocaine.mu[[1]])
 line_heroin.mu <- mle_line(mle_heroin.mu[[1]])
 line_oversize.mu <- mle_line(mle_oversize.mu[[1]])
 line_montagna.mu <- mle_line(mle_montagna.mu[[1]])
-line_tfc.mu <- mle_line(mle_tfc.mu[[1]])
-line_super.mu <- mle_line(mle_super.mu[[1]])
+
+
 
 # power law distribution
 line_siren.pl <- mle_line(mle_siren.pl[[1]])
@@ -286,8 +597,8 @@ line_cocaine.pl <- mle_line(mle_cocaine.pl[[1]])
 line_heroin.pl <- mle_line(mle_heroin.pl[[1]])
 line_oversize.pl <- mle_line(mle_oversize.pl[[1]])
 line_montagna.pl <- mle_line(mle_montagna.pl[[1]])
-line_tfc.pl <- mle_line(mle_tfc.pl[[1]])
-line_super.pl <- mle_line(mle_super.pl[[1]])
+
+
 
 # exponential curve
 line_siren.lambda <- mle_line(mle_siren.lambda[[1]])
@@ -298,209 +609,152 @@ line_cocaine.lambda <- mle_line(mle_cocaine.lambda[[1]])
 line_heroin.lambda <- mle_line(mle_heroin.lambda[[1]])
 line_oversize.lambda <- mle_line(mle_oversize.lambda[[1]])
 line_montagna.lambda <- mle_line(mle_montagna.lambda[[1]])
-line_tfc.lambda <- mle_line(mle_tfc.lambda[[1]])
-line_super.lambda <- mle_line(mle_super.lambda[[1]])
 
 
 
 # plot the log normal curves for each of the criminal networks estimated from the model ------------------------------------------------------------------------------
-ccdf_plot <- function(plot, line, title){
+ccdf_plot <- function(plot, line1, line2, sims, title){
   require("ggplot2"); require("scales"); require("ggthemes")
   # tutorial on how to plot poweRlaw() objects with ggplot2
   # https://rpubs.com/lgadar/power-law
   ccdf <- ggplot2::ggplot(plot) + 
-    ggplot2::geom_point(ggplot2::aes(x = x, y = y), shape = 21, size = 5, color = "black", fill = "white") +
-    ggplot2::geom_line(data = line, ggplot2::aes(x = x, y = y), color = "firebrick1", linetype = "solid", linewidth = 2) +
-    ggplot2::ggtitle(title) +
+  ggplot2::geom_point(
+    ggplot2::aes(x = x, y = y), 
+    shape = 21, 
+    size = 3, 
+    color = "black", 
+    fill = "white"
+    ) +
+  # fitted power law
+  ggplot2::geom_line(
+    data = line2, 
+    ggplot2::aes(x = x, y = y), 
+    color = "grey80", 
+    linetype = "solid", 
+    linewidth = 1, 
+    alpha = 0.50
+    ) +
+  # fitted log-normal distribution
+  ggplot2::geom_line(
+    data = line1, 
+    ggplot2::aes(x = x, y = y), 
+    color = "firebrick1", 
+    linetype = "solid", 
+    linewidth = 1, 
+    alpha = 1.00
+    ) +
+  # fitted log-normal distribution (simulations)
+  ggplot2::geom_ribbon(
+      data = sims, 
+      ggplot2::aes(x = k, ymin = lower, ymax = upper), 
+      fill = "skyblue1", 
+      alpha = 0.5
+      ) +
+  ggplot2::geom_line(
+    data = sims,
+    ggplot2::aes(x = k, y = median), 
+    color = "skyblue1", 
+    linewidth = 1,
+    alpha = 1.00
+    ) +
     # tutorial to add log scales and tick marks
     # https://www.datanovia.com/en/blog/ggplot-log-scale-transformation/
-    ggplot2::scale_x_log10(name = "LOGGED DEGREE", breaks = scales::trans_breaks("log10", function(x) 10^x), labels = scales::trans_format("log10", math_format(10^.x))) +
-    ggplot2::scale_y_log10(name = "LOGGED CUMULATIVE DISTRIBUTION FUNCTION (CDF)", breaks = scales::trans_breaks("log10", function(x) 10^x), labels = scales::trans_format("log10", math_format(10^.x))) +
-    ggplot2::annotation_logticks(sides = "trbl") +
-    ggthemes::theme_base() +
-    ggplot2::theme(
-      plot.title = ggplot2::element_text(size = 10, face = "plain"),
-      axis.text.x = ggplot2::element_text(color = "black", size = 8, hjust = 0.5, vjust = 0.5, face = "plain"),
-      axis.text.y = ggplot2::element_text(color = "black", size = 8, hjust = 1.0, vjust = 0.0, face = "plain"),  
-      axis.title.x = ggplot2::element_text(color = "black", size = 8, hjust = 0.5, vjust = 0.0, face = "plain"),
-      axis.title.y = ggplot2::element_text(color = "black", size = 8, hjust = 0.5, vjust = 0.5, face = "plain")
-      )
+    # ggplot2::scale_x_log10(breaks = scales::trans_breaks("log10", function(x) 10^x), labels = scales::trans_format("log10", math_format(10^.x))) +
+    # ggplot2::scale_y_log10(breaks = scales::trans_breaks("log10", function(x) 10^x), labels = scales::trans_format("log10", math_format(10^.x))) +
+  ggplot2::scale_x_log10(limits = c(1, 30)) +
+  ggplot2::scale_y_log10(limits = c(0.01, 1.00)) +
+  ggplot2::annotation_logticks(sides = "trbl") +
+  ggplot2::labs(
+    title = title,
+    y = "LOGGED CUMULATIVE DISTRIBUTION FUNCTION (CDF)", 
+    x = "LOGGED DEGREE"
+    ) +
+  ggthemes::theme_few() +
+  ggplot2::theme(
+    plot.title = ggplot2::element_text(size = 5, hjust = 0.5, face = "plain", color = "black"),
+    axis.title = ggplot2::element_text(color = "black", size = 5, face = "plain"),
+    axis.text.x = ggplot2::element_text(color = "black", size = 5, hjust = 0.5, vjust = 0.5, face = "plain"),
+    axis.text.y = ggplot2::element_text(color = "black", size = 5, hjust = 1.0, vjust = 0.0, face = "plain"),  
+    axis.title.x = ggplot2::element_text(color = "black", size = 5, hjust = 0.5, vjust = 0.0, face = "plain"),
+    axis.title.y = ggplot2::element_text(color = "black", size = 5, hjust = 0.5, vjust = 0.5, face = "plain")
+    )
+  print(ccdf)
+  return(ccdf)
 }
 ccdf_siren <- ccdf_plot(
   plot = plot_siren, 
-  line = line_siren.mu,
+  line1 = line_siren.mu,
+  line2 = line_siren.pl,
+  sims = test,
   title = "(A) SIREN AUTO THEFT RING"
   )
 ccdf_togo <- ccdf_plot(
   plot = plot_togo, 
-  line = line_togo.mu,
+  line1 = line_togo.mu,
+  line2 = line_togo.pl,
   title = "(B) TOGO AUTO THEFT RING"
   )
 ccdf_caviar <- ccdf_plot(
   plot = plot_caviar, 
-  line = line_cavair.mu,
-  title = "(C) CAVIAR DRUG TRAFFICKING ORGANIZATION"
+  line1 = line_cavair.mu,
+  line2 = line_cavair.pl,
+  title = "(C) CAVAIR DRUG TRAFFICKING ORGANIZATION"
   )
 ccdf_cielnet <- ccdf_plot(
   plot = plot_cielnet, 
-  line = line_cielnet.mu, 
-  title = "(D) CIELNET DRUG TRAFFICKING ORGANIZATION"
+  line1 = line_cielnet.mu, 
+  line2 = line_cielnet.pl,
+  title = "(D) CIEL DRUG COCAINE TRAFFICKING ORGANIZATION"
   )
 ccdf_cocaine <- ccdf_plot(
   plot = plot_cocaine, 
-  line = line_cocaine.mu, 
-  title = "(E) LA COSA NOSTRA COCAINE TRAFFICKING OUTFIT"
+  line1 = line_cocaine.mu,
+  line2 = line_cocaine.pl,
+  title = "(E) CARTEL SATELLITE COCAINE TRAFFICKERS"
   )
 ccdf_heroin <- ccdf_plot(
   plot = plot_heroin, 
-  line = line_heroin.mu, 
-  title = "(F) NEW YORK CITY HEROIN TRAFFICKERS"
+  line1 = line_heroin.mu,
+  line2 = line_heroin.pl,
+  title = "(F) LA COSA NOSTRA HEROIN TRAFFICKING OUTFIT"
   )
 ccdf_oversize <- ccdf_plot(
   plot = plot_oversize, 
-  line = line_oversize.mu, 
-  title = "(G) 'NDRANGHETA WIRETAPS - OPERATION OVERSIZE"
+  line1 = line_oversize.mu,
+  line2 = line_oversize.pl,
+  title = "(G) 'NDRANGHETA DRUG TRAFFICKING OPERATION"
   )
 ccdf_montagna <- ccdf_plot(
   plot = plot_montagna, 
-  line = line_montagna.mu, 
-  title = "(H) COSA NOSTRA WIRETAPS - OPERATION MONTAGNA"
+  line1 = line_montagna.mu,
+  line2 = line_montagna.pl,
+  title = "(H) COSA NOSTRA BID-RIGGING CONSPIRACY"
   )
-ccdf_tfc <- ccdf_plot(
-  plot = plot_tfc,
-  line = line_tfc.mu, 
-  title = "(I) THE FRENCH CONNECTION - FEDERAL BUREAU OF NARCOTICS"
-  )
-ccdf_super <- ccdf_plot(
-  plot = plot_super, 
-  line = line_super.mu, 
-  title = "(J) SUPER POPULATION OF CRIMINAL NETWORKS"
-  )
-
 
 # output high resolution images
 output <- function(plot, filename){
   ggplot2::ggsave(
     filename,
     plot,
-    path = "~/Desktop", 
-    width = 5, 
-    height = 5, 
+    path = "~/Desktop/super/", 
+    width = 2.5, 
+    height = 2, 
     device = 'pdf', 
     dpi = 700
-    )
+  )
 }
-output(plot = ccdf_siren, filename = "fig2a.pdf")
-output(plot = ccdf_togo, filename = "fig2b.pdf")
-output(plot = ccdf_caviar, filename = "fig2c.pdf")
-output(plot = ccdf_cielnet, filename = "fig2d.pdf")
-output(plot = ccdf_cocaine, filename = "fig2e.pdf")
-output(plot = ccdf_heroin, filename = "fig2f.pdf")
-output(plot = ccdf_oversize, filename = "fig2g.pdf")
-output(plot = ccdf_montagna, filename = "fig2h.pdf")
-output(plot = ccdf_tfc, filename = "fig2i.pdf")
-output(plot = ccdf_super, filename = "fig2j.pdf")
+output(plot = ccdf_siren, filename = "figA8a.pdf")
+output(plot = ccdf_togo, filename = "figA8b.pdf")
+output(plot = ccdf_caviar, filename = "figA8c.pdf")
+output(plot = ccdf_cielnet, filename = "figA8d.pdf")
+output(plot = ccdf_cocaine, filename = "figA8e.pdf")
+output(plot = ccdf_heroin, filename = "figA8f.pdf")
+output(plot = ccdf_oversize, filename = "figA8g.pdf")
+output(plot = ccdf_montagna, filename = "figA8h.pdf")
 
 
 
 # close .r script
 
-
-
-# plot the log normal curves for each of the criminal networks estimated from the model ------------------------------------------------------------------------------
-ccdf_plot <- function(plot, line1, line2, line3, title){
-  require(ggplot2); require(scales)
-  # tutorial on how to plot poweRlaw() objects with ggplot2
-  # https://rpubs.com/lgadar/power-law
-  ccdf <- ggplot2::ggplot(plot) + 
-  ggplot2::geom_point(ggplot2::aes(x = x, y = y), shape = 21, size = 5, color = "black", fill = "white") +
-  ggplot2::geom_line(data = line1, ggplot2::aes(x = x, y = y), color = "firebrick1", linetype = "solid", linewidth = 2) +
-  ggplot2::geom_line(data = line2, ggplot2::aes(x = x, y = y), color = "skyblue1", linetype = "solid", linewidth = 2) +
-  ggplot2::geom_line(data = line3, ggplot2::aes(x = x, y = y), color = "green3", linetype = "solid", linewidth = 2) +
-  ggplot2::ggtitle(title) +
-  ggplot2::labs(y = "LOGGED CUMULATIVE DISTRIBUTION FUNCTION (CDF)", x = "LOGGED DEGREE") +
-  ggplot2::theme(
-    axis.text.x = ggplot2::element_text(color = "black", size = 8, hjust = 0.5, vjust = 0.5, face = "plain"),
-    axis.text.y = ggplot2::element_text(color = "black", size = 8, hjust = 1.0, vjust = 0.0, face = "plain"),  
-    axis.title.x = ggplot2::element_text(color = "black", size = 8, hjust = 0.5, vjust = 0.0, face = "plain"),
-    axis.title.y = ggplot2::element_text(color = "black", size = 8, hjust = 0.5, vjust = 0.5, face = "plain")
-    ) +
-  # tutorial to add log scales and tick marks
-  # https://www.datanovia.com/en/blog/ggplot-log-scale-transformation/
-  ggplot2::scale_x_log10(breaks = scales::trans_breaks("log10", function(x) 10^x), labels = scales::trans_format("log10", math_format(10^.x))) +
-  ggplot2::scale_y_log10(breaks = scales::trans_breaks("log10", function(x) 10^x), labels = scales::trans_format("log10", math_format(10^.x))) +
-  ggplot2::annotation_logticks(sides = "trbl") +
-  ggthemes::theme_base()
-}
-ccdf_siren <- ccdf_plot(
-  plot = plot_siren, 
-  line1 = line_siren.mu,
-  line2 = line_siren.lambda,
-  line3 = line_siren.pl,
-  title = "(A) SIREN AUTO THEFT RING"
-  )
-ccdf_togo <- ccdf_plot(
-  plot = plot_togo, 
-  line1 = line_togo.mu, 
-  line2 = line_togo.lambda, 
-  line3 = line_togo.pl,
-  title = "(B) TOGO AUTO THEFT RING"
-  )
-ccdf_caviar <- ccdf_plot(
-  plot = plot_caviar, 
-  line1 = line_cavair.mu,
-  line2 = line_cavair.lambda,
-  line3 = line_cavair.pl,
-  title = "(C) CAVAIR DRUG TRAFFICKING ORGANIZATION"
-  )
-ccdf_cielnet <- ccdf_plot(
-  plot = plot_cielnet, 
-  line1 = line_cielnet.mu, 
-  line2 = line_cielnet.lambda,
-  line3 = line_cielnet.pl,
-  title = "(D) CIELNET DRUG TRAFFICKING ORGANIZATION"
-  )
-ccdf_cocaine <- ccdf_plot(
-  plot = plot_cocaine, 
-  line1 = line_cocaine.mu,
-  line2 = line_cocaine.lambda,
-  line3 = line_cocaine.pl,
-  title = "(E) LA COSA NOSTRA COCAINE TRAFFICKING OUTFIT"
-  )
-ccdf_heroin <- ccdf_plot(
-  plot = plot_heroin, 
-  line1 = line_heroin.mu, 
-  line2 = line_heroin.lambda,
-  line3 = line_heroin.pl,
-  title = "(F) NEW YORK CITY HEROIN TRAFFICKERS"
-  )
-ccdf_oversize <- ccdf_plot(
-  plot = plot_oversize, 
-  line1 = line_oversize.mu,
-  line2 = line_oversize.lambda,
-  line3 = line_oversize.pl,
-  title = "(G) 'NDRANGHETA WIRETAPS - OPERATION OVERSIZE"
-  )
-ccdf_montagna <- ccdf_plot(
-  plot = plot_montagna, 
-  line1 = line_montagna.mu,
-  line2 = line_montagna.lambda,
-  line3 = line_montagna.pl,
-  title = "(H) COSA NOSTRA WIRETAPS - OPERATION MONTAGNA"
-  )
-ccdf_tfc <- ccdf_plot(
-  plot = plot_tfc,
-  line1 = line_tfc.mu, 
-  line2 = line_tfc.lambda,
-  line3 = line_tfc.pl,
-  title = "(I) THE FRENCH CONNECTION - FEDERAL BUREAU OF NARCOTICS"
-  )
-ccdf_super <- ccdf_plot(
-  plot = plot_super, 
-  line1 = line_super.mu,
-  line2 = line_super.lambda,
-  line3 = line_super.pl,
-  title = "(J) SUPER POPULATION OF CRIMINAL NETWORKS"
-  )
 
 

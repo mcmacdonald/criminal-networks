@@ -1,12 +1,10 @@
-#  ---------------------------------------------------------------------------------------------------
+#  -----------------------------------------------------------------------------
 
-# file 01: import and manipulate data used to estimate the hierarchical exponential random graph model
+# file 01: import and manipulate data used to estimate the hierarchical model
 
 # note: you must run this file before you run file named '02.R'
 
-# last updated: 23/04/2025
-
-# ----------------------------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 
 
@@ -34,6 +32,9 @@ siren    = import(file = "~/criminal-networks/data/morselli_siren.csv") # siren 
 togo     = import(file = "~/criminal-networks/data/morselli_togo.csv") # togo auto theft - Morselli
 oversize = import(file = "~/criminal-networks/data/berlusconietal_oversize.csv") # 'Ndrangheta -- wiretap records for those named in court records
 montagna = import(file = "~/criminal-networks/data/luciaetal_montagna.csv") # 'Cosa Nostra -- wiretap records for those arrested and indicted on criminal charges
+
+# don't run
+# saveRDS(list(caviar, cielnet, cocaine, heroin, siren, togo, oversize, montagna), "~/Desktop/data.rds")
 
 
 
@@ -170,6 +171,6 @@ g_montagna <- graph(montagna, v = v_montagna)
 
 
 
-# close .r script
+# close .R script
 
 

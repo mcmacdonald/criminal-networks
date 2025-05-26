@@ -2,8 +2,6 @@
 
 # file 03: estimate the Bayesian hierarchical model
 
-# last updated: 23/04/2025
-
 # ------------------------------------------------------------------------------------
 
 
@@ -15,7 +13,7 @@ posteriors <- function(model, g, name){
   theta <- as.data.frame(model$Theta)
   colnames(theta) <- c("edges", "gwdegree", "gwdsp", "gwesp", "degcor")
   
-  # transform the degree correlation term
+  # rescale the degree correlation term
   theta <- dplyr::mutate(theta, degcor = degcor/100)
   
   # means of the posterior estimates
@@ -41,7 +39,7 @@ posteriors <- function(model, g, name){
   data <- cbind(mu, sd, se1, se2)
   
   # names of the parameters
-  rownames(data) <- c("DYADS", "GWDEGREE", "GWDSP", "GWESP", "ASSORTATIVITY")
+  rownames(data) <- c("EDGES", "CENTRALIZATION", "COMMON FRIENDS", "TRIADIC CLOSURE", "ASSORTATIVITY")
   parameters <- as.data.frame(rownames(data))
   parameters <- dplyr::mutate(parameters, model = name)
   
@@ -81,35 +79,16 @@ metanet_bayes <- function(data, parameter){
   # vector of effect sizes
   mean <- data$mean
   
-  # vector of standard errors
-  sigma <- if (parameter == "ASSORTATIVITY") {
-    data$stderr.ts
-  } else {
-    data$stderr
-  }
+  # vector of standard deviations
+  sigma <- data$sd
   
   # vector of labels 
   model <- data$model
   
-  # sample weights
-  weights <- 1/(sigma^2)
-  
-  # prior mean
-  prior.mu <- sum(weights * mean)/sum(weights) 
-  
-  # prior standard deviation
-  w_var <- sum(weights * (mean - prior.mu)^2)/(sum(weights) - sum(weights^2)/sum(weights)) # weighted sample variance
-  prior.sd <- sqrt(w_var) #  weighted standard deviation is the square root of the weighted variance
-  
   # tau prior
-  # Gelman recommends the half-Caucy priors (0, 5), where scale parameter = 5
+  # see Gelman's paper
   # https://projecteuclid.org/journals/bayesian-analysis/volume-1/issue-3/Prior-distributions-for-variance-parameters-in-hierarchical-models-comment-on/10.1214/06-BA117A.full
-  prior.tau <- function(t){bayesmeta::dhalfcauchy(t, scale = 1)}
-  # don't run
-  # let the tau prior vary within defined range
-  # prior.TAU <- function(tau) {
-  # ifelse(tau >= 0.001 & tau <= 3, bayesmeta::dhalfnormal(tau, scale = 1), 0)
-  # }
+  prior.tau <- function(t){bayesmeta::dhalfcauchy(t, scale = 5)}
   
   # estimate the hierarchical Bayesian model
   # sources: 
@@ -119,8 +98,6 @@ metanet_bayes <- function(data, parameter){
   model <- bayesmeta::bayesmeta(
     y = mean,
     sigma = sigma,
-    mu.prior.mean = prior.mu,
-    mu.prior.sd = prior.sd,
     tau.prior = prior.tau,
     label = model
     )
@@ -128,16 +105,19 @@ metanet_bayes <- function(data, parameter){
   # return
   return(model)
 }
-meta_01 <- metanet_bayes(data = posteriors_bergm, parameter = "DYADS")
-meta_02 <- metanet_bayes(data = posteriors_bergm, parameter = "GWDEGREE")
-meta_03 <- metanet_bayes(data = posteriors_bergm, parameter = "GWDSP")
-meta_04 <- metanet_bayes(data = posteriors_bergm, parameter = "GWESP")
-meta_05 <- metanet_bayes(data = posteriors_bergm, parameter = "ASSORTATIVITY")
+meta_01 <- metanet_bayes(data = posteriors_bergm, parameter = "EDGES")
+meta_02 <- metanet_bayes(data = posteriors_bergm, parameter = "COMMON FRIENDS")
+meta_03 <- metanet_bayes(data = posteriors_bergm, parameter = "TRIADIC CLOSURE")
+meta_04 <- metanet_bayes(data = posteriors_bergm, parameter = "ASSORTATIVITY")
+meta_05 <- metanet_bayes(data = posteriors_bergm, parameter = "CENTRALIZATION")
 
 
 
 # compile results of the meta analysis into one dataset to plot the results
 reshape_metabayes <- function(model, effect){
+  
+  # required packages
+  require('dplyr'); require('stats')
   
   # model parameter
   effect <- effect
@@ -171,11 +151,11 @@ reshape_metabayes <- function(model, effect){
   return(data)
 }
 meta_results <- rbind(
-  reshape_metabayes(model = metanet_bayes(data = posteriors_bergm, parameter = "DYADS"), effect = "DYADS"),
-  reshape_metabayes(model = metanet_bayes(data = posteriors_bergm, parameter = "GWDEGREE"), effect = "GWDEGREE"),
-  reshape_metabayes(model = metanet_bayes(data = posteriors_bergm, parameter = "GWDSP"), effect = "GWDSP"),
-  reshape_metabayes(model = metanet_bayes(data = posteriors_bergm, parameter = "GWESP"), effect = "GWESP"),
-  reshape_metabayes(model = metanet_bayes(data = posteriors_bergm, parameter = "ASSORTATIVITY"), effect = "ASSORTATIVITY")
+  reshape_metabayes(model = metanet_bayes(data = posteriors_bergm, parameter = "EDGES"), effect = "EDGES"),
+  reshape_metabayes(model = metanet_bayes(data = posteriors_bergm, parameter = "COMMON FRIENDS"), effect = "COMMON FRIENDS"),
+  reshape_metabayes(model = metanet_bayes(data = posteriors_bergm, parameter = "TRIADIC CLOSURE"), effect = "TRIADIC CLOSURE"),
+  reshape_metabayes(model = metanet_bayes(data = posteriors_bergm, parameter = "ASSORTATIVITY"), effect = "ASSORTATIVITY"),
+  reshape_metabayes(model = metanet_bayes(data = posteriors_bergm, parameter = "CENTRALIZATION"), effect = "CENTRALIZATION")
   )
 
 
@@ -189,10 +169,16 @@ meta_results <- rbind(
   scaleFUN <- function(x) sprintf("%.2f", x)
   
   # level factors so that the function plots them in the correct order
-  meta_results$effect <- factor(meta_results$effect, levels = c("DYADS", "GWDEGREE", "GWDSP", "GWESP", "ASSORTATIVITY"))
+  meta_results$effect <- factor(
+    meta_results$effect, 
+    levels = c("EDGES", "COMMON FRIENDS", "TRIADIC CLOSURE", "ASSORTATIVITY", "CENTRALIZATION"
+              )
+    )
+  meta_results <- dplyr::filter(meta_results, effect != "EDGES")
+  posteriors_bergm <- dplyr::filter(posteriors_bergm, parameters != "EDGES")
 
 # construct the boxplot
-fig_meta <- ggplot2::ggplot(meta_results, ggplot2::aes(x = effect, y = mean)) +
+fig2 <- ggplot2::ggplot(meta_results, ggplot2::aes(x = effect, y = mean)) +
   # horizontal line to marker where y = 0
   ggplot2::geom_hline(yintercept = 0.00, color = "red", linetype = "dashed", size = 1.0, alpha = 0.8) +
   # error bars to visualize the confidence intervals
@@ -217,7 +203,7 @@ fig_meta <- ggplot2::ggplot(meta_results, ggplot2::aes(x = effect, y = mean)) +
   # don't run
   # circle points for the mean
   # ggplot2::geom_point(size = 3, color = "black") +
-  ggplot2::scale_y_continuous(limits = c(-6, 2), breaks = seq(-6, 2, 1), labels = scaleFUN) +
+  ggplot2::scale_y_continuous(limits = c(-8, 2.00), breaks = seq(-8, 2.00, 2), labels = scaleFUN) +
   ggplot2::labs(
     # title = "NETWORK META-ANALYSIS",
     x = "MODEL PARAMETERS",
@@ -242,434 +228,819 @@ output <- function(plot, filename){
     path = "~/Desktop/Super", 
     width = 5, 
     height = 5, 
-    device = 'pdf', 
+    device = 'png', 
     dpi = 700
     )
 }
-output(plot = fig_meta, filename = "fig2.pdf")
+output(plot = fig2, filename = "fig2.png")
 
 
 
-# simulate networks from the effect sizes of the hierarchical model
 
-  # this code simulates 120,000 networks in total
-  # 10,000 simulations x four networks of different sizes x three densities
+# compute Bayes Factors for simulated networks ---------------------------------
 
-  # posterior distribution for the effect sizes from the hierarchical model
-  posterior_effects <- data.frame(
-    dyads = meta_01$rposterior(n = 10000)[, "mu"],
-    gwdegree = meta_02$rposterior(n = 10000)[, "mu"],
-    gwdsp = meta_03$rposterior(n = 10000)[, "mu"],
-    gwesp = meta_04$rposterior(n = 10000)[, "mu"],
-    degcor = meta_05$rposterior(n = 10000)[, "mu"]
-    )
+# function to simulate networks from Bayesian models
+simulator <- function(thetas, model, nsim){
   
-  # priors
-  prior <- brms::prior(normal(0, 2), class = "b") + brms::prior(normal(0, 5), class = "Intercept")
-  posterior_scaled <- as.data.frame(scale(posterior_effects[, c("dyads", "gwdegree", "gwdsp", "gwesp", "degcor")]))
+  # required packages
+  require('stats')
   
-  # regression model
-  fit <- brms::brm(
-    formula = dyads ~ gwdegree + gwdsp + gwesp + degcor,
-    data = posterior_scaled,
-    prior = prior,
-    chains = 4,
-    cores = 4,
-    iter = 5000,
-    seed = 20240517 # Malone's birthday
-    )
-  brms::bayes_R2(fit)
-  plot(fit)
-  
-  summary(brms::VarCorr(fit, summary = TRUE))
-
-  
-# join data
-thetas <- rbind(
-  cbind(as.data.frame(bayes_01.siren$Theta), network = "siren"),
-  cbind(as.data.frame(bayes_02.togo$Theta), network = "togo"),
-  cbind(as.data.frame(bayes_03.caviar$Theta), network = "caviar"),
-  cbind(as.data.frame(bayes_04.cielnet$Theta), network = "cielnet"),
-  cbind(as.data.frame(bayes_05.cocaine$Theta), network = "cocaine"),
-  cbind(as.data.frame(bayes_06.heroin$Theta), network = "heroin"),
-  cbind(as.data.frame(bayes_07.oversize$Theta), network = "oversize"),
-  cbind(as.data.frame(bayes_08.montagna$Theta), network = "montagna")
-  )  
-colnames(thetas) <- c("dyads", "gwdegree", "gwdsp", "gwesp", "degcor", "model")   
-
-
-
-# bayes model
-correlate <- function(thetas){
-  
-  # posterior estimates
-  thetas <- dplyr::mutate(thetas, degcor = degcor/100)
-  
-  # model names
-  model <- thetas$model
-  
-  # scale
-  thetas <- as.data.frame(scale(thetas[, c("dyads", "gwdegree", "gwdsp", "gwesp", "degcor")]))
-  
-  # join
-  thetas <- cbind(thetas, model = model)
-  
-  # regression model
-  fit <- brms::brm(
-    formula = gwdegree ~ gwdsp + gwesp + degcor + (1 | model),
-    data = thetas,
-    # prior = prior,
-    chains = 4,
-    cores = 4,
-    iter = 5000,
-    seed = 20240517 # Malone's birthday
-    )
-  print(summary(fit))
-  
-  # posterior fitted values (posterior means)
-  thetas$fitted <- fitted(fit)[, "Estimate"]
-  
-  # Bayesian R²
-  r2 <- brms::bayes_R2(fit)[1]
-  
-  # decompose the variance across model components
-  vc <- brms::VarCorr(fit, summary = TRUE)
-  print(vc)  
-  
-  # plot actual vs fitted with line of best fit
-  best <- ggplot2::ggplot(thetas, aes(x = fitted, y = gwdegree)) +
-    ggplot2::geom_point(
-      shape = 21, 
-      size = 1, 
-      color = "black", 
-      fill = "white", 
-      alpha = 0.5
-      ) +
-    ggplot2::scale_y_continuous(limits = c(-3, 3), breaks = c(-3, -2, -1, 0, 1, 2, 3)) +
-    ggplot2::scale_x_continuous(limits = c(-3, 3), breaks = c(-3, -2, -1, 0, 1, 2, 3)) +
-    ggplot2::geom_smooth(method = "lm", se = TRUE, color = "firebrick1", alpha = 0.80) +
-    ggplot2::labs(
-      title = "PREDICTED LINE OF BEST FIT",
-      subtitle = paste0("Bayesian R² = ", round(r2, digits = 2)),
-      x = "PREDICTED GWDEGREE",
-      y = "GWDEGREE STATISTICS FROM THE MODEL"
-      ) +
-    ggthemes::theme_few()
-  return(best)
-}
-correlate(thetas)
-
-
-
-
-
-
-# bayes model
-correlate <- function(theta, title){
-  
-  # posterior estimates
-  theta <- as.data.frame(theta)
-  colnames(theta) <- c("dyads", "gwdegree", "gwdsp", "gwesp", "degcor")
-  theta <- dplyr::mutate(theta, degcor = degcor/100)
-  
-  # scale
-  theta <- as.data.frame(scale(theta[, c("dyads", "gwdegree", "gwdsp", "gwesp", "degcor")]))
-
-  # regression model
-  fit <- brms::brm(
-    formula = gwdegree ~ gwdsp + gwesp + degcor,
-    data = theta,
-    prior = prior,
-    chains = 4,
-    cores = 4,
-    iter = 5000,
-    seed = 20240517 # Malone's birthday
-    )
-    print(summary(fit))
-    
-    # posterior fitted values (posterior means)
-    theta$fitted <- fitted(fit)[, "Estimate"]
-    theta$lower <- fitted(fit)[, "Q2.5"]
-    theta$upper <- fitted(fit)[, "Q97.5"]
-    
-    # Bayesian R²
-    r2 <- brms::bayes_R2(fit)[1]
-    
-    # variance decomposition
-    summary(brms::VarCorr(fit, summary = TRUE))
-    
-    # plot actual vs fitted with line of best fit
-    best <- ggplot2::ggplot(theta, aes(x = fitted, y = gwdegree)) +
-      ggplot2::geom_point(
-        shape = 21, 
-        size = 1, 
-        color = "black", 
-        fill = "white", 
-        alpha = 0.5
-        ) +
-      ggplot2::geom_line(ggplot2::aes(y = fitted), color = "firebrick1", alpha = 1.00, linewidth = 1) +
-      ggplot2::geom_ribbon(ggplot2::aes(ymin = lower, ymax = upper), fill = "firebrick1", alpha = 0.50) +
-      ggplot2::scale_y_continuous(limits = c(-3, 3), breaks = c(-3, -2, -1, 0, 1, 2, 3)) +
-      ggplot2::scale_x_continuous(limits = c(-3, 3), breaks = c(-3, -2, -1, 0, 1, 2, 3)) +
-      ggplot2::annotate(
-        "text", x = -2.75, y = 2.75, 
-        label = bquote(italic(R)^2 == .(round(r2, digits = 2))), 
-        hjust = 1, 
-        size = 3
-        ) +
-      ggplot2::labs(
-        title = title,
-        x = "FITTED VALUES",
-        y = "GWDEGREE STATISTICS"
-        ) +
-      ggthemes::theme_few()
-    return(best)
-}
-correlate(bayes_01.siren$Theta, title = "(A) SIREN AUTO THEFT NETWORK")
-correlate(bayes_02.togo$Theta)
-correlate(bayes_03.caviar$Theta)
-correlate(bayes_04.cielnet$Theta)
-correlate(bayes_05.cocaine$Theta)
-correlate(bayes_06.heroin$Theta)
-correlate(bayes_07.oversize$Theta)
-correlate(bayes_08.montagna$Theta)
-
-
-
-
-
-
-
-  # number of nodes and density of networks to simulate 
-  n <- c(30, 50, 75, 100)
-  p <- c(0.02, 0.05, 0.10)
-  
-  # dyad counts 
-  dyads <- expand.grid(n = n, p = p)
-  dyads$dyads <- round(dyads$n * (dyads$n - 1) / 2 * dyads$p)
+  # model parameters
+  theta <- colMeans(thetas)
   
   # simulate
-  simulator <- function(nodes, theta){
-    
-    # initialize network of n number of nodes
-    g <- network::network.initialize(nodes, directed = FALSE)
-    
-    # formula
-    f <- g ~ edges + gwesp(0.5, fixed = TRUE) + gwdsp(0.5, fixed = TRUE) + gwdegree(0.5, fixed = TRUE) + degcor()
-    
-    # simulate
-    sim <- tryCatch({
-      # wrapper function for igraph local average transitivity
-      stats::simulate(
-        f, # model specification
-        coef = unname(as.numeric(theta)), # posterior estimates
-        seed = 20240517, # Malone's birthday
-        nsim = 1, # number of simulations
-        output = "network" # thing to simulate
-        )
-    }, 
-    error = function(e) {
-      message("simulation failed.")
-      return(NULL)
-    })
-    
-    # return
-    return(sim)
-  }
-  
-  results <- list()
-  counter <- 1
-  
-  for (i in 1:nrow(posterior_effects)) {
-    theta <- posterior_effects[i, ]
-    
-    for (j in 1:nrow(dyads)) {
-      
-      nodes <- dyads$n[j]
-      density <- dyads$p[j]
-      links <- dyads$dyads[j]
-      
-      g_sim <- simulator(nodes, theta)
-      
-      results[[counter]] <- list(
-        draw = i,
-        nodes = nodes,
-        density = density,
-        edges = links,
-        net = g_sim
-        )
-      counter <- counter + 1
-    }
-  }
-  
-  
-  
-  
-
-
-
-
-
-# close .r script
-
-
-
-
-
-# network meta-analysis that computes the weighted averages for each of the model parameters i.e., the hierarchical model
-metanet <- function(data, parameter){
-  
-  # required packages
-  require("metafor")
-  
-  # first, subset data by the parameter
-  data <- subset(data, parameters == parameter)
-  
-  # estimate the hierarchical model i.e., random effects model
-  model <- metafor::rma.mv(
-    yi = mean, # parameter estimate
-    V = stderr.ts^2, # squared standard error i.e., level 1 of the model
-    random = ~1 | model, # parameter from each model for all the criminal networks i.e., level 2 of the model
-    data = data
+  sims <- stats::simulate(
+    model, # model specification
+    coef = theta, # model parameters
+    seed = 20240517, # Malone's birthday
+    nsim = nsim, # number of simulations
+    output = "network" # thing to simulate
     )
-  return(model)
+  
+  # return 
+  return(sims)
 }
-
-
-# meta-analysis of each of the parameters
-effect <- function(data, parameter){
-  
-  # required packages
-  require("metafor")
-  
-  # first, subset data by the parameter
-  data <- subset(data, parameters == parameter)
-  
-  # calculate the effect sizes
-  outcome <- metafor::escalc(
-    # see pg. 89 for options: https://cran.r-project.org/web/packages/metafor/metafor.pdf
-    # see pg. 95: use "GEN" for generic outcome measure that is not further specified
-    measure = "SMN", # standardized mean
-    yi = mean,
-    sei = stderr.ts,
-    slab = model,
-    data = data
-    )
-  return(outcome)
-}
-effect(data = posteriors_bergm, parameter = "GWDEGREE")
-
-
-
-# compile results of the meta analysis into one dataset to plot the results
-reshape_metafor <- function(model, effect){
-  
-  # model parameter
-  effect <- effect
-  
-  # multilevel model parameters
-  fetch <- function(thing){
-    thing <- as.numeric(thing)
-    return(thing)
-  }
-  beta <- fetch(model$beta)
-  stderr <- fetch(model$se)
-  pvalue <- fetch(model$pval)
-  ci.lo <- fetch(model$ci.lb)
-  ci.hi <- fetch(model$ci.ub)
-  
-  # compute quantile range for plot
-  Q1 <- beta + (stats::qnorm(0.25) * stderr); Q3 <- beta + (stats::qnorm(0.75) * stderr)
-  
-  # join
-  data <- as.data.frame(cbind(beta, stderr, pvalue, ci.lo, ci.hi, Q1, Q3))
-  data <- cbind(effect, data)
-  
-  # function to label p-values with asterisks
-  label <- function(p) {
-    if (p < 0.001) return("***")
-    if (p < 0.01) return("**")
-    if (p < 0.05) return("*")
-    return("n.s.") # uniciode characters for n.s.: \u207F\u00B7\u02E2\u00B7
-  }
-  data$p.signif <- label(data$pvalue)
-  
-  # return the dataset for plotting
-  return(data)
-}
-meta_results <- rbind(
-  reshape_metafor(metanet(data = posteriors_bergm, parameter = "DYADS"), effect = "DYADS"),
-  reshape_metafor(metanet(data = posteriors_bergm, parameter = "GWDEGREE"), effect = "GWDEGREE"),
-  reshape_metafor(metanet(data = posteriors_bergm, parameter = "GWDSP"), effect = "GWDSP"),
-  reshape_metafor(metanet(data = posteriors_bergm, parameter = "GWESP"), effect = "GWESP"),
-  reshape_metafor(metanet(data = posteriors_bergm, parameter = "ASSORTATIVITY"), effect = "ASSORTATIVITY")
+g_siren.sim <- simulator(
+  thetas = bayes_01.siren$Theta,
+  model = bayes_01.siren$formula,
+  nsim = 100
+  )
+g_togo.sim <- simulator(
+  thetas = bayes_02.togo$Theta,
+  model = bayes_02.togo$formula,
+  nsim = 100
+  )
+g_caviar.sim <- simulator(
+  thetas = bayes_03.caviar$Theta,
+  model = bayes_03.caviar$formula,
+  nsim = 100
+  )
+g_cielnet.sim <- simulator(
+  thetas = bayes_04.cielnet$Theta,
+  model = bayes_04.cielnet$formula,
+  nsim = 100
+  )
+g_cocaine.sim <- simulator(
+  thetas = bayes_05.cocaine$Theta,
+  model = bayes_05.cocaine$formula,
+  nsim = 100
+  )
+g_heroin.sim <- simulator(
+  thetas = bayes_06.heroin$Theta,
+  model = bayes_06.heroin$formula,
+  nsim = 100
+  )
+g_oversize.sim <- simulator(
+  thetas = bayes_07.oversize$Theta,
+  model = bayes_07.oversize$formula,
+  nsim = 100
+  )
+g_montagna.sim <- simulator(
+  thetas = bayes_08.montagna$Theta,
+  model = bayes_08.montagna$formula,
+  nsim = 100
   )
 
 
 
-# construct the boxplot
-fig_meta <- ggplot2::ggplot(meta_results2, ggplot2::aes(x = effect, y = mean)) +
-  # horizontal line to marker where y = 0
-  ggplot2::geom_hline(yintercept = 0.00, color = "red", linetype = "dashed", size = 1, alpha = 0.8) +
-  # error bars to visualize the confidence intervals
-  ggplot2::geom_errorbar(ggplot2::aes(ymin = ci.lo, ymax = ci.hi), width = 0.2, color = "black") +
-  # data points
-  ggplot2::geom_jitter(
-    data = posteriors_bergm, 
-    mapping = ggplot2::aes(x = parameters, y = mean), 
-    width = 0.2, 
-    size = 2, 
-    shape = 21, # circles
-    color = "black",
-    fill = "white",
-    alpha = 1.0
-    ) +
-  # boxplot
-  ggplot2::geom_boxplot(
-    ggplot2::aes(lower = Q1, upper = Q3, middle = mean, ymin = ci.lo, ymax = ci.hi), 
-    stat = "identity",
-    fill = "lightgrey", color = "black", width = 0.5, alpha = 1.0
-    ) +
-  # don't run
-  # circle points for the mean
-  # ggplot2::geom_point(size = 3, color = "black") +
-  ggplot2::scale_y_continuous(limits = c(-6, 2), breaks = seq(-6, 2, 1), labels = scaleFUN) +
-  ggplot2::labs(
-    # title = "NETWORK META-ANALYSIS",
-    x = "MODEL PARAMETERS",
-    y = "WEIGHTED POSTERIOR ESTIMATES"
-    ) +
-  ggthemes::theme_base() +
-  ggplot2::theme(
-    legend.position = "none",
-    axis.text.x = ggplot2::element_text(angle = 45, vjust = 0.5, hjust = 0.5, size = 8),
-    axis.title.x = ggplot2::element_text(size = 10, face = "plain"),
-    axis.text.y = ggplot2::element_text(angle =  0, vjust = 0.5, hjust = 0.5, size = 8),
-    axis.title.y = ggplot2::element_text(size = 10, face = "plain")
-    ) +
-  # markers that indicate statistical significance
-  ggplot2::geom_text(
-    data = meta_results, 
-    ggplot2::aes(x = effect, y = 1.9, label = p.signif), 
-    size = 3, 
-    color = "black", 
-    vjust = 0
+# estimate the model for the simulations
+bayes_simulator <- function(y_list, alpha_deg, alpha_dsp, alpha_esp){
+  
+  # required packages
+  require('Bergm')
+  
+  # set seed for replication
+  set.seed(20190812) # Hayes's birthday
+  
+  # number of simulations
+  n <- length(y_list)
+  
+  # list to store models
+  models <- vector("list", n)
+  
+  # loop function to estimate models from the exponential random graph model
+  for (i in seq_len(n)) { 
+    
+    # store inside the function
+    y <- y_list[[i]]
+    
+    # formula
+    formula <- stats::as.formula(paste0("y ~ edges + ","gwdegree(", alpha_deg, ", fixed=TRUE) + ", "gwdsp(", alpha_dsp, ", fixed=TRUE) + ", "gwesp(", alpha_esp, ", fixed=TRUE) + ", "degcor"))
+    
+    # model estimation  
+    fit <- tryCatch(
+      {
+        bayes(y = y, formula = formula)
+      },
+      error = function(e) {
+        message(paste("Error in model", i, ":", conditionMessage(e)))
+        return(NULL)
+      # },
+      # warning = function(w) {
+        # message(paste("Warning in model", i, ":", conditionMessage(w)))
+        # return(invisible(NULL))
+      }
+    )
+    
+    # join ith model to list of the models
+    models[[i]] <- fit
+    
+  }
+  
+  return(models)
+}
+bayes_01.siren.sim <- bayes_simulator(
+  y_list = g_siren.sim,
+  alpha_deg = 0.7,
+  alpha_dsp = 2.0,
+  alpha_esp = 2.0
+  )
+bayes_02.togo.sim <- bayes_simulator(
+  y_list = g_togo.sim, 
+   alpha_deg = 0.7, 
+   alpha_dsp = 1.7, 
+   alpha_esp = 1.0
+   )
+bayes_03.caviar.sim <- bayes_simulator(
+  y_list = g_caviar.sim, 
+   alpha_deg = 2.0, 
+   alpha_dsp = 2.0, 
+   alpha_esp = 2.0
+   )
+bayes_04.cielnet.sim <- bayes_simulator(
+  y_list = g_cielnet.sim, 
+   alpha_deg = 1.7, 
+   alpha_dsp = 0.2, 
+   alpha_esp = 0.2
+   )
+bayes_05.cocaine.sim <- bayes_simulator(
+  y_list = g_cocaine.sim, 
+   alpha_deg = 2.5, 
+   alpha_dsp = 0.5, 
+   alpha_esp = 0.5
+   )
+bayes_06.heroin.sim <- bayes_simulator(
+  y_list = g_heroin.sim, 
+   alpha_deg = 0.5, 
+   alpha_dsp = 0.1, 
+   alpha_esp = 1.0
+   )
+bayes_07.oversize.sim <- bayes_simulator(
+  y_list = g_oversize.sim, 
+   alpha_deg = 1.5, 
+   alpha_dsp = 0.5, 
+   alpha_esp = 1.7
+   )
+bayes_08.montagna.sim <- bayes_simulator(
+  y_list = g_montagna.sim, 
+   alpha_deg = 1.2, 
+   alpha_dsp = 0.5, 
+   alpha_esp = 0.5
+   )
+
+
+
+# estimate Bayes Factors for the 100 simulations
+BF <- function(y_list, sim_list, alpha_deg, alpha_dsp, alpha_esp, hypothesis, effect, model) {
+  
+  # required packages
+  require('stats'); require('BFpack'); require('Bergm')
+  
+  # set seed for replication
+  set.seed(20190812) # Hayes's birthday
+  
+  # number of simulations
+  n <- length(y_list)
+  
+  # list to store models
+  bf_test <- vector("list", n)
+  
+  # loop function to estimate models from the exponential random graph model
+  for (i in seq_len(n)) { 
+    
+    # store inside the function
+    y <- y_list[[i]]
+    
+    # model
+    fit <- sim_list[[i]]
+    
+    # ERGM formula
+    # formula <- stats::as.formula(paste0("y ~ edges + ","gwdegree(", alpha_deg, ", fixed=TRUE) + ", "gwdsp(", alpha_dsp, ", fixed=TRUE) + ", "gwesp(", alpha_esp, ", fixed=TRUE) + ", "degcor"))
+    
+    # pass through prior function to estimate Bayesian exponential random graph model
+    bf_test[i] <- tryCatch({
+      
+    # model estimation  
+    # fit <- bayes(y = y, formula = formula)
+    
+    # check that theta samples exist
+    if (is.null(fit$Theta)) stop("bayes() failed: Theta is NULL")
+    
+    # posteriors 
+    posterior <- colMeans(fit$Theta)
+    
+    # variance
+    Sigma <- stats::cov(fit$Theta)
+    
+    # make sure the call uses 'y' from global env
+    # fit$call$formula[[2]] <- quote(y)
+    
+    # temporarily call to global environment so that BFpack:":BF() can call the simulated data
+    assign("y", y, envir = .GlobalEnv)
+    
+    # hypothesis test
+    test <- BFpack::BF(
+      fit, 
+      posterior = posterior, 
+      Sigma = Sigma, 
+      hypothesis = hypothesis
+      )
+    
+    # remove to ensure there is no error in the temporarily assignment
+    rm("y", envir = .GlobalEnv)
+    
+    # Bayes factor
+    test <- test$BFtable_confirmatory[1,7]
+    
+    # return
+    as.numeric(test)
+    
+    # in case of error, don't interrupt/stop
+    }, error = function(e) {
+      warning(sprintf("Model %d failed: %s", i, e$message))
+      NA_real_
+    })
+  }
+  # classify the strength of the evidence, per Rafferty (1995) ... see Table 6 (p. 139)
+  # https://www.jstor.org/stable/271063?origin=crossref&seq=29
+  evidence <- sapply(bf_test, function(bf) {
+    if (is.na(bf)) { # error
+      "NA" 
+    } else if (bf < 1) { # evidence to support null hypothesis
+      "NULL" 
+    } else if (bf < 3) { # weak evidence for hypothesis
+      "WEAK" 
+    } else if (bf < 20) { # moderate evidence for hypothesis
+      "MODERATE"
+    } else if (bf < 150) { # strong evidence for hypothesis
+      "STRONG"
+    } else { # very strong evidence for hypothesis
+      "VERY STRONG"
+    }
+  })
+  # return tidy data frame
+  results <- data.frame(
+    BF = as.numeric(bf_test),
+    evidence = factor(
+      evidence, 
+      levels = c(
+        "NULL", 
+        "WEAK", 
+        "MODERATE", 
+        "STRONG", 
+        "VERY STRONG", 
+        "NA"
+        )
+      ),
+    effect = rep(effect, n), # repeat for each simulation
+    model = rep(model, n), # repeat for each simulation
+    stringsAsFactors = FALSE
+    )
+
+  # return the results
+  return(results)
+}
+
+# centralization i.e., geometrically weighted degree
+bf_centralization <- rbind(
+  BF(y_list = g_siren.sim, 
+     sim_list = bayes_01.siren.sim,
+     alpha_deg = 0.7, 
+     alpha_dsp = 2.0, 
+     alpha_esp = 2.0,
+     hypothesis = "theta2 < 0",
+     effect = "CENTRALIZATION",
+     model = "SIREN"
+     ),
+  BF(y_list = g_togo.sim, 
+     sim_list = bayes_02.togo.sim,
+     alpha_deg = 0.7, 
+     alpha_dsp = 1.7, 
+     alpha_esp = 1.0,
+     hypothesis = "theta2 < 0",
+     effect = "CENTRALIZATION",
+     model = "TOGO"
+     ),
+  BF(y_list = g_caviar.sim,
+     sim_list = bayes_03.caviar.sim,
+     alpha_deg = 2.0, 
+     alpha_dsp = 2.0, 
+     alpha_esp = 2.0,
+     hypothesis = "theta2 < 0",
+     effect = "CENTRALIZATION",
+     model = "CAVIAR"
+     ),
+  BF(y_list = g_cielnet.sim, 
+     sim_list = bayes_04.cielnet.sim,
+     alpha_deg = 1.7, 
+     alpha_dsp = 0.2, 
+     alpha_esp = 0.2,
+     hypothesis = "theta2 < 0",
+     effect = "CENTRALIZATION",
+     model = "CIELNET"
+     ),
+  BF(y_list = g_cocaine.sim, 
+     sim_list = bayes_05.cocaine.sim,
+     alpha_deg = 2.5, 
+     alpha_dsp = 0.5, 
+     alpha_esp = 0.5,
+     hypothesis = "theta2 < 0",
+     effect = "CENTRALIZATION",
+     model = "COCAINE"
+     ),
+  BF(y_list = g_heroin.sim, 
+     sim_list = bayes_06.heroin.sim,
+     alpha_deg = 0.5, 
+     alpha_dsp = 0.1, 
+     alpha_esp = 1.0,
+     hypothesis = "theta2 < 0",
+     effect = "CENTRALIZATION",
+     model = "HEROIN"
+     ),
+  BF(y_list = g_oversize.sim, 
+     sim_list = bayes_07.oversize.sim,
+     alpha_deg = 1.5, 
+     alpha_dsp = 0.5, 
+     alpha_esp = 1.7,
+     hypothesis = "theta2 < 0",
+     effect = "CENTRALIZATION",
+     model = "OVERSIZE"
+     ),
+  BF(y_list = g_montagna.sim, 
+     sim_list = bayes_08.montagna.sim,
+     alpha_deg = 1.2, 
+     alpha_dsp = 0.5, 
+     alpha_esp = 0.5,
+     hypothesis = "theta2 < 0",
+     effect = "CENTRALIZATION",
+     model = "MONTAGNA"
+     )
+  )
+
+# common co-conspirators i.e., geometrically weighted dyadwise shared partners
+bf_dsp <- rbind(
+  BF(y = g_siren.sim,
+     sim_list = bayes_01.siren.sim,
+     alpha_deg = 0.7, 
+     alpha_dsp = 2.0, 
+     alpha_esp = 2.0,
+     hypothesis = "theta3 > 0",
+     effect = "COMMON FRIENDS",
+     model = "SIREN"
+     ),
+  BF(y = g_togo.sim, 
+     sim_list = bayes_02.togo.sim,
+     alpha_deg = 0.7, 
+     alpha_dsp = 1.7, 
+     alpha_esp = 1.0,
+     hypothesis = "theta3 > 0",
+     effect = "COMMON FRIENDS",
+     model = "TOGO"
+     ),
+  BF(y = g_caviar.sim, 
+     sim_list = bayes_03.caviar.sim,
+     alpha_deg = 2.0, 
+     alpha_dsp = 2.0, 
+     alpha_esp = 2.0,
+     hypothesis = "theta3 > 0",
+     effect = "COMMON FRIENDS",
+     model = "CAVIAR"
+     ),
+  BF(y = g_cielnet.sim, 
+    sim_list = bayes_04.cielnet.sim,
+    alpha_deg = 1.7, 
+    alpha_dsp = 0.2, 
+    alpha_esp = 0.2,
+    hypothesis = "theta3 > 0",
+    effect = "COMMON FRIENDS",
+    model = "CIELNET"
+    ),
+  BF(y = g_cocaine.sim,
+     sim_list = bayes_05.cocaine.sim,
+     alpha_deg = 2.5, 
+     alpha_dsp = 0.5, 
+     alpha_esp = 0.5,
+     hypothesis = "theta3 > 0",
+     effect = "COMMON FRIENDS",
+     model = "COCAINE"
+     ),
+  BF(y = g_heroin.sim, 
+     sim_list = bayes_06.heroin.sim,
+     alpha_deg = 0.5, 
+     alpha_dsp = 0.1, 
+     alpha_esp = 1.0,
+     hypothesis = "theta3 > 0",
+     effect = "COMMON FRIENDS",
+     model = "HEROIN"
+     ),
+  BF(y = g_oversize.sim, 
+     sim_list = bayes_07.oversize.sim,
+     alpha_deg = 1.5, 
+     alpha_dsp = 0.5, 
+     alpha_esp = 1.7,
+     hypothesis = "theta3 > 0",
+     effect = "COMMON FRIENDS",
+     model = "OVERSIZE"
+     ),
+  BF(y = g_montagna.sim, 
+     sim_list = bayes_08.montagna.sim,
+     alpha_deg = 1.2, 
+     alpha_dsp = 0.5, 
+     alpha_esp = 0.5,
+     hypothesis = "theta3 > 0",
+     effect = "COMMON FRIENDS",
+     model = "MONTAGNA"
+     )
+  )
+
+# triadic closure i.e., geometrically weighted edgewise shared partners
+bf_esp <- rbind(
+  BF(y = g_siren.sim,
+     sim_list = bayes_01.siren.sim,
+     alpha_deg = 0.7, 
+     alpha_dsp = 2.0, 
+     alpha_esp = 2.0,
+     hypothesis = "theta4 > 0",
+     effect = "TRIADIC CLOSURE",
+     model = "SIREN"
+     ),
+  BF(y = g_togo.sim, 
+     sim_list = bayes_02.togo.sim,
+     alpha_deg = 0.7, 
+     alpha_dsp = 1.7, 
+     alpha_esp = 1.0,
+     hypothesis = "theta4 > 0",
+     effect = "TRIADIC CLOSURE",
+     model = "TOGO"
+     ),
+  BF(y = g_caviar.sim, 
+     sim_list = bayes_03.caviar.sim,
+     alpha_deg = 2.0, 
+     alpha_dsp = 2.0, 
+     alpha_esp = 2.0,
+     hypothesis = "theta4 > 0",
+     effect = "TRIADIC CLOSURE",
+     model = "CAVIAR"
+     ),
+  BF(y = g_cielnet.sim, 
+     sim_list = bayes_04.cielnet.sim,
+     alpha_deg = 1.7, 
+     alpha_dsp = 0.2, 
+     alpha_esp = 0.2,
+     hypothesis = "theta4 > 0",
+     effect = "TRIADIC CLOSURE",
+     model = "CIELNET"
+     ),
+  BF(y = g_cocaine.sim, 
+     sim_list = bayes_05.cocaine.sim,
+     alpha_deg = 2.5, 
+     alpha_dsp = 0.5, 
+     alpha_esp = 0.5,
+     hypothesis = "theta4 > 0",
+     effect = "TRIADIC CLOSURE",
+     model = "COCAINE"
+     ),
+  BF(y = g_heroin.sim, 
+     sim_list = bayes_06.heroin.sim,
+     alpha_deg = 0.5, 
+     alpha_dsp = 0.1, 
+     alpha_esp = 1.0,
+     hypothesis = "theta4 > 0",
+     effect = "TRIADIC CLOSURE",
+     model = "HEROIN"
+     ),
+  BF(y = g_oversize.sim, 
+     sim_list = bayes_07.oversize.sim,
+     alpha_deg = 1.5, 
+     alpha_dsp = 0.5, 
+     alpha_esp = 1.7,
+     hypothesis = "theta4 > 0",
+     effect = "TRIADIC CLOSURE",
+     model = "OVERSIZE"
+     ),
+  BF(y = g_montagna.sim, 
+     sim_list = bayes_08.montagna.sim,
+     alpha_deg = 1.2, 
+     alpha_dsp = 0.5, 
+     alpha_esp = 0.5,
+     hypothesis = "theta4 > 0",
+     effect = "TRIADIC CLOSURE",
+     model = "MONTAGNA"
+     )
+  )
+
+# degree assortativity i.e., degree correlation
+bf_degcor <- rbind(
+  BF(y = g_siren.sim,
+     sim_list = bayes_01.siren.sim,
+     alpha_deg = 0.7, 
+     alpha_dsp = 2.0, 
+     alpha_esp = 2.0,
+     hypothesis = "theta5 > 0",
+     effect = "ASSORTATIVITY",
+     model = "SIREN"
+     ),
+  BF(y = g_togo.sim, 
+     sim_list = bayes_02.togo.sim,
+     alpha_deg = 0.7, 
+     alpha_dsp = 1.7, 
+     alpha_esp = 1.0,
+     hypothesis = "theta5 > 0",
+     effect = "ASSORTATIVITY",
+     model = "TOGO"
+     ),
+  BF(y = g_caviar.sim, 
+     sim_list = bayes_03.caviar.sim,
+     alpha_deg = 2.0, 
+     alpha_dsp = 2.0, 
+     alpha_esp = 2.0,
+     hypothesis = "theta5 > 0",
+     effect = "ASSORTATIVITY",
+     model = "CAVIAR"
+     ),
+  BF(y = g_cielnet.sim, 
+     sim_list = bayes_04.cielnet.sim,
+     alpha_deg = 1.7, 
+     alpha_dsp = 0.2, 
+     alpha_esp = 0.2,
+     hypothesis = "theta5 > 0",
+     effect = "ASSORTATIVITY",
+     model = "CIELNET"
+     ),
+  BF(y = g_cocaine.sim, 
+     sim_list = bayes_05.cocaine.sim,
+     alpha_deg = 2.5, 
+     alpha_dsp = 0.5, 
+     alpha_esp = 0.5,
+     hypothesis = "theta5 > 0",
+     effect = "ASSORTATIVITY",
+     model = "COCAINE"
+     ),
+  BF(y = g_heroin.sim, 
+     sim_list = bayes_06.heroin.sim,
+     alpha_deg = 0.5, 
+     alpha_dsp = 0.1, 
+     alpha_esp = 1.0,
+     hypothesis = "theta5 > 0",
+     effect = "ASSORTATIVITY",
+     model = "HEROIN"
+     ),
+  BF(y = g_oversize.sim, 
+     sim_list = bayes_07.oversize.sim,
+     alpha_deg = 1.5, 
+     alpha_dsp = 0.5, 
+     alpha_esp = 1.7,
+     hypothesis = "theta5 > 0",
+     effect = "ASSORTATIVITY",
+     model = "OVERSIZE"
+     ),
+  BF(y = g_montagna.sim, 
+     sim_list = bayes_08.montagna.sim,
+     alpha_deg = 1.2, 
+     alpha_dsp = 0.5, 
+     alpha_esp = 0.5,
+     hypothesis = "theta5 > 0",
+     effect = "ASSORTATIVITY",
+     model = "MONTAGNA"
+     )
+  )
+
+# join the bayes factors for the simulated networks together
+`%>%` <- magrittr::`%>%`
+bf <- dplyr::bind_rows(
+  bf_centralization,
+  bf_dsp,
+  bf_esp,
+  bf_degcor
+  ) %>%
+  dplyr::filter(!is.na(BF))  # drop any failed simulations
+
+# set the order of facets
+bf$model <- factor(bf$model, levels = c("SIREN", "TOGO", "CAVIAR", "CIELNET", "COCAINE", "HEROIN", "OVERSIZE", "MONTAGNA"))
+
+# rename the labels
+labels <- c(
+  SIREN = "(A) SIREN AUTO THEFT RING",
+  TOGO = "(B) TOGO AUTO THEFT RING",
+  CAVIAR = "(C) CAVIAR DRUG TRAFFICKING ORGANIZATION",
+  CIELNET = "(D) CIEL DRUG TRAFFICKING ORGANIZATION",
+  COCAINE = "(E) CARTEL SATELLITE COCAINE TRAFFICKERS",
+  HEROIN = "(F) LA COSA NOSTRA HEROIN TRAFFICKING OUTFIT",
+  OVERSIZE = "(G) OVERSIZE - 'NDRANGHETA RACKETEERING",
+  MONTAGNA = "(H) MONTAGNA - COSA NOSTRA BID-RIGGING CONSPIRACY"
+  )
+bf$model <- factor(bf$model, levels = names(labels))
+
+# set order of the model parameters
+bf$effect <- factor(bf$effect, levels = c("COMMON FRIENDS", "TRIADIC CLOSURE", "ASSORTATIVITY", "CENTRALIZATION"))
+
+# don't run
+# save
+# saveRDS(bf, file = "~/Desktop/super/BF.rds")
+
+# summarize statistics for boxplot
+bf_box <- bf %>%
+  dplyr::group_by(effect) %>%
+  dplyr::summarise(
+    ymin = stats::quantile(BF, 0.025),
+    lower = stats::quantile(BF, 0.25),
+    middle = mean(BF),           # substitute for median if you want
+    upper = stats::quantile(BF, 0.75),
+    ymax = stats::quantile(BF, 0.975)
     )
 
 
-
-# boxplot of the average posterior estimates across the models
-ggplot2::ggplot(posteriors_bergm, ggplot2::aes(x = parameters, y = mean, fill = "white")) +
-  ggplot2::geom_boxplot(color = "black", alpha = 0.7) +
-  ggplot2::geom_jitter(width = 0.2, size = 2, color = "black", fill = "white", alpha = 0.9) +
-  ggplot2::scale_y_continuous(limits = c(-5, 5), breaks = seq(-5, 5, 1)) +
-  ggplot2::labs(
-    # title = "TITLE",
-    x = NULL,
-    y = "POSTERIOR ESTIMATES"
+# plot the box and whisker plot
+fig3 <- ggplot2::ggplot(bf, ggplot2::aes(x = effect, y = BF, color = evidence)) +
+  ggplot2::geom_jitter(width = 0.2, alpha = 0.7, size = 1) +
+  ggplot2::geom_boxplot(
+    data = bf_box,
+    ggplot2::aes(
+      x = effect,
+      ymin = ymin,
+      lower = lower,
+      middle = middle,
+      upper = upper,
+      ymax = ymax
+      ),
+    stat = "identity",
+    fill = NA,
+    color = "black",
+    width = 0.5,
+    inherit.aes = FALSE
     ) +
-  ggthemes::theme_base() +
-  ggplot2::theme(legend.position = "none")
+  ggplot2::geom_errorbar(
+    data = bf_box,
+    ggplot2::aes(x = effect, ymin = upper, ymax = ymax),
+    width = 0.15,
+    color = "black",
+    inherit.aes = FALSE
+    ) +
+  ggplot2::geom_errorbar(
+    data = bf_box,
+    ggplot2::aes(x = effect, ymin = ymin, ymax = lower),
+    width = 0.15,
+    color = "black",
+    inherit.aes = FALSE
+    ) +
+  ggplot2::scale_y_log10(
+    limits = c(1, 10),
+    breaks = c(1, 3, 10, 30, 100, 150),
+    labels = c("1", "3", "10", "30", "100", "150")
+    ) +
+  ggplot2::scale_color_manual(values = c(
+    "NULL" = "#f0f0f0", "WEAK" = "#bdbdbd", "MODERATE" = "#969696",
+    "STRONG" = "#636363", "VERY STRONG" = "#252525"
+     )) +
+  ggplot2::labs(
+    x = "MODEL PARAMETERS",
+    y = "BAYES FACTORS",
+    color = "Evidence Strength"
+  ) +
+  ggplot2::theme_minimal(base_size = 13) +
+  ggplot2::theme(
+    legend.position = "none",
+    strip.text = ggplot2::element_text(
+      # family = "serif",
+      size = 6, 
+      face = "plain"
+    ),
+    axis.title.x = ggplot2::element_text(color = "black", size = 8),
+    axis.text.x = ggplot2::element_text(color = "black", size = 6, hjust = 0.5, vjust = 0.5, face = "plain", angle = 45),
+    axis.title.y = ggplot2::element_text(color = "black", size = 8),
+    axis.text.y = ggplot2::element_text(color = "black", size = 6, hjust = 1.0, vjust = 0.0, face = "plain", angle =  0),
+    panel.grid.major.y = ggplot2::element_line(color = "grey80", linetype = "dotted"),
+    panel.grid.minor.y = ggplot2::element_line(color = "grey90", linetype = "dotted"),
+    panel.grid.major.x = ggplot2::element_line(color = "grey80", linetype = "dotted")
+    )
+
+
+# plot the box and whisker plot
+fig3 <- ggplot2::ggplot(bf, ggplot2::aes(x = effect, y = BF, color = evidence)) +
+  ggplot2::geom_jitter(width = 0.2, alpha = 0.7, size = 1) +  # dot plot
+  ggplot2::geom_boxplot(ggplot2::aes(group = effect), fill = NA, color = "black", width = 0.5, outlier.shape = NA) +  # boxplot overlay
+  # ggplot2::facet_wrap(~model, nrow = 4, ncol = 2, labeller = ggplot2::labeller(model = labels)) + 
+  ggplot2::scale_y_log10(
+    limits = c(1, 10),
+    breaks = c(1, 3, 10, 30, 100, 150), 
+    labels = c("1", "3", "10", "30", "100", "150")
+    ) +
+  # greyscale palette (dark for stronger evidence)
+  ggplot2::scale_color_manual(values = c(
+    "NULL" = "#f0f0f0",
+    "WEAK" = "#bdbdbd",
+    "MODERATE" = "#969696",
+    "STRONG" = "#636363",
+    "VERY STRONG" = "#252525"
+     )) +
+  ggplot2::labs(
+    # title = "Bayes Factors by Network Effect (Log Scale)",
+    x = "MODEL PARAMETERS",
+    y = "BAYES FACTORS", # y = expression("BAYES FACTOR (log"[10]*")"),
+    color = "Evidence Strength"
+    ) +
+  ggplot2::theme_minimal(base_size = 13) +
+  ggplot2::theme(
+    legend.position = "none",
+    strip.text = ggplot2::element_text(
+      # family = "serif",
+      size = 6, 
+      face = "plain"
+      ),
+    axis.title.x = ggplot2::element_text(color = "black", size = 8),
+    axis.text.x = ggplot2::element_text(color = "black", size = 6, hjust = 0.5, vjust = 0.5, face = "plain", angle = 45),
+    axis.title.y = ggplot2::element_text(color = "black", size = 8),
+    axis.text.y = ggplot2::element_text(color = "black", size = 6, hjust = 1.0, vjust = 0.0, face = "plain", angle =  0),
+    panel.grid.major.y = ggplot2::element_line(color = "grey80", linetype = "dotted"),
+    panel.grid.minor.y = ggplot2::element_line(color = "grey90", linetype = "dotted"),
+    panel.grid.major.x = ggplot2::element_line(color = "grey80", linetype = "dotted")
+    )
+
+# output high resolution images
+output <- function(plot, filename){
+  ggplot2::ggsave(
+    filename,
+    plot,
+    path = "~/Desktop/super/", 
+    width = 5, 
+    height = 5, 
+    device = 'png', 
+    dpi = 700
+    )
+}
+output(plot = fig3, filename = "fig3.png")
 
 
 
+# close . R script
+
+
+
+
+
+
+# network meta-analysis that computes the weighted averages for each of the model parameters i.e., the hierarchical Bayesian model
+metanet_bayes <- function(data, parameter){
+  
+  # set seed for replication
+  set.seed(20110210) # Halle's birthday
+  
+  # required packages
+  require("bayesmeta"); require("metafor")
+  
+  # first, subset data by the parameter
+  data <- subset(data, parameters == parameter)
+  
+  # vector of effect sizes
+  mean <- data$mean
+  
+  # vector of standard errors
+  sigma <- if (parameter == "ASSORTATIVITY") {
+    data$stderr.ts
+  } else {
+    data$stderr.ts
+  }
+  
+  # vector of labels 
+  model <- data$model
+  
+  # sample weights
+  weights <- 1/(sigma^2)
+  
+  # prior mean
+  prior.mu <- sum(weights * mean)/sum(weights) 
+  
+  # prior standard deviation
+  w_var <- sum(weights * (mean - prior.mu)^2)/(sum(weights) - sum(weights^2)/sum(weights)) # weighted sample variance
+  prior.sd <- sqrt(w_var) #  weighted standard deviation is the square root of the weighted variance
+  
+  # tau prior
+  prior.tau <- function(t){bayesmeta::dhalfcauchy(t, scale = 0.5)}
+  
+  # estimate the hierarchical Bayesian model
+  # sources: 
+  # https://cran.r-project.org/web/packages/bayesmeta/vignettes/bayesmeta.html
+  # https://cran.r-project.org/web/packages/bayesmeta/bayesmeta.pdf
+  # https://rshiny.gwdg.de/apps/bayesmeta/
+  model <- bayesmeta::bayesmeta(
+    y = mean,
+    sigma = sigma,
+    mu.prior.mean = prior.mu,
+    mu.prior.sd = prior.sd,
+    tau.prior = prior.tau,
+    label = model
+    )
+  
+  # return
+  return(model)
+}
